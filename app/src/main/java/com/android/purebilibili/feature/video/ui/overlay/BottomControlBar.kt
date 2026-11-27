@@ -294,9 +294,14 @@ fun BottomControlBar(
                     .semantics { testTagsAsResourceId = true }
                     .windowInsetsPadding(playerControlHorizontalInsets(true, true))
                     .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                    .padding(start = 4.dp, end = 4.dp, bottom = 2.dp),
             ) {
-                Box(modifier = Modifier.fillMaxWidth().height(40.dp)) {
+                // 时间贴在进度条两端，省掉原先 40dp 的空白触摸带，底部不再显得空。
+                PortraitProgressRow(
+                    positionProvider = displayPosition,
+                    durationProvider = { progressProvider().duration },
+                    modifier = Modifier.fillMaxWidth().height(28.dp).padding(horizontal = 12.dp),
+                ) {
                     PlayerControlProgressBar(
                         progressProvider = progressProvider,
                         displayPositionProvider = displayPosition,
@@ -306,7 +311,7 @@ fun BottomControlBar(
                             thumbIdleSizeDp = 0,
                             thumbDraggingSizeDp = 12,
                         ),
-                        seekAreaHeight = 40.dp,
+                        seekAreaHeight = 28.dp,
                         horizontalSeekOnly = true,
                         onSeek = onSeek,
                         onSeekStart = onSeekStart,
@@ -330,8 +335,6 @@ fun BottomControlBar(
                 PortraitPlaybackControls(
                     isPlaying = isPlaying,
                     onPlayPause = onPlayPauseClick,
-                    positionProvider = displayPosition,
-                    durationProvider = { progressProvider().duration },
                     speed = currentSpeed,
                     quality = currentQualityLabel,
                     onSpeedClick = onSpeedClick,

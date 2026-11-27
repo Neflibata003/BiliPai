@@ -732,7 +732,7 @@ private fun PortraitRailAction(
                 imageVector = icon,
                 contentDescription = null,
                 tint = if (active && !whiteFilledIcon) accent else Color.White,
-                modifier = Modifier.size(26.dp),
+                modifier = Modifier.size(28.dp),
             )
             if (active && whiteFilledIcon) {
                 Canvas(
@@ -746,7 +746,7 @@ private fun PortraitRailAction(
             AppText(
                 text = formatPlayerActionCount(count),
                 color = Color.White,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 lineHeight = 16.sp,
                 maxLines = 1,
                 softWrap = false,

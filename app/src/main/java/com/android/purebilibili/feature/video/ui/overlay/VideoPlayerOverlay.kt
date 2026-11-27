@@ -1861,6 +1861,7 @@ private fun VideoPlayerOverlayContent(
                                     .padding(
                                         start = 16.dp,
                                         end = if (showPortraitEngagementRail) 76.dp else 16.dp,
+                                        bottom = 6.dp,
                                     )
                                     .widthIn(max = 560.dp)
                                     .fillMaxWidth(),
