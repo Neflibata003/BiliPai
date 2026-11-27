@@ -5,6 +5,7 @@ on:
     # mod/** 分支由 BuildMod.yml 单独编译 Mod 包。
     branches-ignore:
       - 'mod/**'
+      - 'mod-release'
     # 只写 branches 过滤会让标签推送不再触发；保留所有标签以免影响发版。
     tags:
       - '**'

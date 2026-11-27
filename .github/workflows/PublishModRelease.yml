@@ -1,0 +1,56 @@
+name: Publish Mod Release
+
+# 把「Build Mod APK」已经编好的安装包发布到 Releases（预发布），不重新编译。
+# 推送 mod-release 分支时发布下方默认运行的产物；也可手动触发并填入运行 ID。
+on:
+  push:
+    branches:
+      - 'mod-release'
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Build Mod APK 的运行 ID'
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  SOURCE_RUN_ID: ${{ github.event.inputs.run_id || '45921456535' }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download built APK
+        uses: actions/download-artifact@v4
+        with:
+          name: BiliPai-Mod
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+          path: apk
+
+      - name: Publish pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK=$(ls apk/*.apk | head -n 1)
+          test -f "$APK"
+          SOURCE_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" --jq .head_sha)
+          TAG="mod-0.10.5-$SOURCE_RUN_ID"
+          cat > notes.md <<'NOTES'
+          **BiliPai Mod**（基于 BiliPai 0.10.5）——点下方 `BiliPai-0.10.5-mod.apk` 直接下载安装。
+
+          - 包名 `com.android.purebilibili.mod`，与官方版并存安装，互不覆盖（需重新登录）。
+          - 竖屏播放：保留状态栏（时间 / 电量 / 信号）、可隐藏顶栏设备接力、横向视频一键切横屏全屏、底栏画质不再被截断。
+          - 新图标：白骨瓷瓷砖 + 黑曜石 bilipai 字标。
+          - 使用 CI 临时签名：以后升级 Mod 需先卸载旧 Mod（官方版不受影响）。
+          NOTES
+          gh release create "$TAG" "$APK" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$SOURCE_SHA" \
+            --prerelease \
+            --title "BiliPai Mod 0.10.5（竖屏优化 + 白骨瓷图标）" \
+            --notes-file notes.md
+          echo "Release: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
