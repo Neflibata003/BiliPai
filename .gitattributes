@@ -1,2 +1,6 @@
 # Generated brand preview embeds assets and should not count as source code.
 artwork/brand-motion/preview.html linguist-generated=true
+
+# Shell scripts must keep LF so Git Bash / Linux can run them after a Windows checkout.
+gradlew text eol=lf
+*.sh text eol=lf

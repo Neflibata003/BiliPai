@@ -21,6 +21,12 @@ to_native_path() {
   if command -v cygpath >/dev/null 2>&1; then cygpath -w "$1"; else printf '%s' "$1"; fi
 }
 
+# 去掉脚本里的 CR（Windows 上 core.autocrlf=true 检出的 gradlew 会报 /bin/sh^M: bad interpreter）
+fix_crlf() {
+  # 不用 grep 检测：Git Bash 的 grep 会把 CRLF 当作行尾吞掉 CR，检测不到。
+  sed -i 's/\r$//' "$1"
+}
+
 # 1. 环境检查
 if ! java -version 2>&1 | grep -q 'version "21'; then
   echo "✗ 需要 JDK 21。安装 Android Studio 后可把 JAVA_HOME 指向它自带的 jbr 目录，例如："
@@ -44,11 +50,14 @@ if [ ! -d "$HOME/.m2/repository/top/yukonga/miuix/kmp/miuix-core/$MIUIX_VERSION"
   WORK="${TMPDIR:-/tmp}/miuix-$MIUIX_SHA"
   echo "→ 编译 Miuix $MIUIX_VERSION 到 mavenLocal（首次较慢，会下载 Kotlin/Native 工具链）"
   if [ ! -d "$WORK/.git" ]; then
-    git clone --filter=blob:none --no-checkout https://github.com/compose-miuix-ui/miuix "$WORK"
+    # Windows 的 Git 默认 core.autocrlf=true，会把 gradlew 检出成 CRLF，Git Bash 无法执行。
+    git -c core.autocrlf=false clone --filter=blob:none --no-checkout https://github.com/compose-miuix-ui/miuix "$WORK"
   fi
   (
     cd "$WORK"
+    git config core.autocrlf false
     git checkout --quiet "$MIUIX_SHA"
+    fix_crlf gradlew
     # Miuix 用 git rev-parse --short 生成版本号，固定缩写长度以得到与 BiliPai 一致的版本。
     git config core.abbrev ${#MIUIX_SHA}
     TASKS=""
@@ -57,7 +66,7 @@ if [ ! -d "$HOME/.m2/repository/top/yukonga/miuix/kmp/miuix-core/$MIUIX_VERSION"
     done
     chmod +x gradlew
     # shellcheck disable=SC2086
-    ./gradlew --no-configuration-cache $TASKS
+    bash ./gradlew --no-configuration-cache $TASKS
   )
   test -d "$HOME/.m2/repository/top/yukonga/miuix/kmp/miuix-core/$MIUIX_VERSION" || {
     echo "✗ Miuix 发布到 mavenLocal 失败"; exit 1;
@@ -85,8 +94,9 @@ else
 fi
 
 # 4. 编译
+fix_crlf gradlew
 chmod +x gradlew
-./gradlew -Pbili.miuix.mavenLocal=true "-Pbili.mod.buildNumber=$BUILD_NUMBER" assembleMod
+bash ./gradlew -Pbili.miuix.mavenLocal=true "-Pbili.mod.buildNumber=$BUILD_NUMBER" assembleMod
 
 APK="app/build/outputs/bilipai/mod/BiliPai-0.10.5-mod.apk"
 if [ -f "$APK" ]; then
