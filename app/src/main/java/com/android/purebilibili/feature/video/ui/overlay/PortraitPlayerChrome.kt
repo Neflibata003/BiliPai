@@ -14,6 +14,7 @@ import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.ClosedCaptionOff
 import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.Newspaper
+import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.ScreenRotation
@@ -119,6 +120,33 @@ internal fun rememberPortraitChromeMenuToggles(scope: CoroutineScope): PortraitC
             }
         },
     )
+}
+
+/** 竖屏顶栏返回键旁的「N人正在看」。 */
+@Composable
+internal fun PortraitOnlineCountLabel(onlineCount: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.padding(start = 4.dp, end = 8.dp).widthIn(max = 150.dp).testTag("portrait_online_count"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        AppIcon(
+            imageVector = Icons.Outlined.People,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.8f),
+            modifier = Modifier.size(16.dp),
+        )
+        AppText(
+            text = onlineCount,
+            color = Color.White.copy(alpha = 0.88f),
+            fontSize = 13.sp,
+            lineHeight = 17.sp,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            tapToCopyEnabled = false,
+        )
+    }
 }
 
 /** 竖屏信息区里可点进的入口（分 P、合集）。 */

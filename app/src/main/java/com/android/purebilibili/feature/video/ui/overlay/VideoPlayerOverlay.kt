@@ -1833,9 +1833,10 @@ private fun VideoPlayerOverlayContent(
                             PortraitPlayerMetadata(
                                 bvid = bvid,
                                 title = chromeTitle,
+                                // 在看人数显示在顶栏返回键旁，这里只保留播放量。
                                 statsText = resolvePortraitStatsText(
                                     playCountText = state.videoSharePlayCountText,
-                                    onlineCountText = displayedOnlineCount,
+                                    onlineCountText = "",
                                 ),
                                 authorName = videoOwnerName,
                                 authorFace = state.videoOwnerFace,

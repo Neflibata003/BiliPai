@@ -7403,7 +7403,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         val showFullscreenBatteryLevel: Boolean = true,
         val showFullscreenTime: Boolean = true,
         val showFullscreenActionItems: Boolean = true,
-        val showOnlineCount: Boolean = false,
+        val showOnlineCount: Boolean = true,
         val chapterDisplayMode: ChapterDisplayMode = ChapterDisplayMode.WITH_CONTROLS,
         val bottomProgressBehavior: BottomProgressBehavior = BottomProgressBehavior.ALWAYS_HIDE,
         val playerControlVisibility: PlayerControlVisibilitySettings = PlayerControlVisibilitySettings(),
@@ -7424,7 +7424,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                     showFullscreenBatteryLevel = preferences[KEY_SHOW_FULLSCREEN_BATTERY_LEVEL] ?: true,
                     showFullscreenTime = preferences[KEY_SHOW_FULLSCREEN_TIME] ?: true,
                     showFullscreenActionItems = preferences[KEY_SHOW_FULLSCREEN_ACTION_ITEMS] ?: true,
-                    showOnlineCount = preferences[KEY_SHOW_ONLINE_COUNT] ?: false,
+                    showOnlineCount = preferences[KEY_SHOW_ONLINE_COUNT] ?: true,
                     chapterDisplayMode = ChapterDisplayMode.fromValue(
                         preferences[KEY_CHAPTER_DISPLAY_MODE] ?: ChapterDisplayMode.WITH_CONTROLS.value
                     ),
@@ -9231,7 +9231,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     }
 
     fun getShowOnlineCount(context: Context): Flow<Boolean> = context.settingsDataStore.data
-        .map { preferences -> preferences[KEY_SHOW_ONLINE_COUNT] ?: false }
+        .map { preferences -> preferences[KEY_SHOW_ONLINE_COUNT] ?: true }
 
     fun getShowVideoDetailCommentCount(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_SHOW_VIDEO_DETAIL_COMMENT_COUNT] ?: true }
@@ -9257,7 +9257,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     fun getShowOnlineCountSync(context: Context): Boolean {
         return context.getSharedPreferences("video_overlay_cache", Context.MODE_PRIVATE)
-            .getBoolean("show_online_count", false)
+            .getBoolean("show_online_count", true)
     }
 
     fun getShowProfileEditButton(context: Context): Flow<Boolean> = context.settingsDataStore.data

@@ -203,6 +203,9 @@ fun TopControlBar(
     } else 0.dp
     val motionEnabled = LocalComponentMotionEnabled.current
     val showPortraitAuthor = simplifiedPortrait && isFullscreen && authorName.isNotBlank()
+    // 竖屏全屏不显示标题时，把「N人正在看」放在返回键旁，与底部信息区分开。
+    val showPortraitOnlineCount = simplifiedPortrait && isFullscreen && !showPortraitAuthor &&
+        title.isEmpty() && onlineCount.isNotBlank()
     val hasTitle = policy.showTitle && (title.isNotEmpty() || showPortraitAuthor)
     val haptic = rememberHapticFeedback(com.android.purebilibili.core.ui.AppHapticScene.VIDEO_ACTIONS)
     val likeClick: (() -> Unit)? = onLikeClick?.let { action ->
@@ -238,6 +241,7 @@ fun TopControlBar(
                         if (onHomeClick != null && showTopItem(com.android.purebilibili.core.store.FullscreenTopBarItem.HOME)) {
                             HeaderIcon(Icons.Outlined.Home, "返回首页", onHomeClick)
                         }
+                        if (showPortraitOnlineCount) PortraitOnlineCountLabel(onlineCount)
                     }
                 },
                 right = {

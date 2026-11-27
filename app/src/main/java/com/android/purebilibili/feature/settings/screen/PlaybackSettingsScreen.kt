@@ -3805,7 +3805,7 @@ SettingsItemAnchor("playback.app_screenshot_capture_mode") {
         val showFullscreenBatteryLevel by remember(context) { com.android.purebilibili.core.store.SettingsManager.getShowFullscreenBatteryLevel(context) }.collectAsStateWithLifecycle(initialValue = true)
         val showFullscreenTime by remember(context) { com.android.purebilibili.core.store.SettingsManager.getShowFullscreenTime(context) }.collectAsStateWithLifecycle(initialValue = true)
         val showFullscreenActionItems by remember(context) { com.android.purebilibili.core.store.SettingsManager.getShowFullscreenActionItems(context) }.collectAsStateWithLifecycle(initialValue = true)
-        val showOnlineCount by remember(context) { com.android.purebilibili.core.store.SettingsManager.getShowOnlineCount(context) }.collectAsStateWithLifecycle(initialValue = false)
+        val showOnlineCount by remember(context) { com.android.purebilibili.core.store.SettingsManager.getShowOnlineCount(context) }.collectAsStateWithLifecycle(initialValue = true)
 
         AppPreferenceDivider()
         SettingsItemAnchor("playback.show_online_count") {
