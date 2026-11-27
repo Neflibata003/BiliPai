@@ -89,18 +89,37 @@ jobs:
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            if [ -z "$STORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
-              echo "::error::已配置 RELEASE_KEYSTORE_BASE64，但缺少 RELEASE_STORE_PASSWORD / RELEASE_KEY_ALIAS / RELEASE_KEY_PASSWORD，停止构建以免签名变化。"
-              exit 1
-            fi
-            printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.keystore"
-            keytool -list -keystore "$RUNNER_TEMP/release.keystore" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null
-            echo "BILI_RELEASE_STORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
-            echo "fixed=true" >> "$GITHUB_OUTPUT"
-          else
+          if [ -z "$KEYSTORE_BASE64" ]; then
             echo "fixed=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          # 去掉空白、引号与手机复制时夹带的不可见字符，只保留 base64 字符。
+          CLEAN=$(printf '%s' "$KEYSTORE_BASE64" | tr -cd 'A-Za-z0-9+/=')
+          STORE_PASSWORD=$(printf '%s' "$STORE_PASSWORD" | tr -d '[:space:]')
+          KEY_ALIAS=$(printf '%s' "$KEY_ALIAS" | tr -d '[:space:]')
+          KEY_PASSWORD=$(printf '%s' "$KEY_PASSWORD" | tr -d '[:space:]')
+          if [ -z "$STORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::已配置签名 keystore，但缺少 RELEASE_STORE_PASSWORD / RELEASE_KEY_ALIAS / RELEASE_KEY_PASSWORD，停止构建以免签名变化。"
+            exit 1
+          fi
+          if [ "${#CLEAN}" -lt 400 ] || [ $(( ${#CLEAN} % 4 )) -ne 0 ] || \
+             ! printf '%s' "$CLEAN" | base64 -d > "$RUNNER_TEMP/release.keystore" 2>/dev/null; then
+            echo "::error::签名 keystore 的 Secret 不是完整的 base64（有效字符 ${#CLEAN} 个），请把 RELEASE_KEYSTORE_BASE64.txt 里的整行内容重新粘贴进去。"
+            exit 1
+          fi
+          if ! keytool -list -keystore "$RUNNER_TEMP/release.keystore" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null 2>&1; then
+            echo "::error::keystore 已解码，但 RELEASE_STORE_PASSWORD 或 RELEASE_KEY_ALIAS 与之不匹配。"
+            exit 1
+          fi
+          echo "::add-mask::$STORE_PASSWORD"
+          echo "::add-mask::$KEY_PASSWORD"
+          {
+            echo "BILI_RELEASE_STORE_FILE=$RUNNER_TEMP/release.keystore"
+            echo "BILI_RELEASE_STORE_PASSWORD=$STORE_PASSWORD"
+            echo "BILI_RELEASE_KEY_ALIAS=$KEY_ALIAS"
+            echo "BILI_RELEASE_KEY_PASSWORD=$KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+          echo "fixed=true" >> "$GITHUB_OUTPUT"
 
       # 仅用于在运行记录里一眼看出本次签名来源（成功 / 跳过）。
       - name: "Signing: fixed keystore from secrets"
@@ -123,9 +142,7 @@ jobs:
         env:
           # GitHub Packages（Miuix）即使是公开包也需要 token 鉴权。
           GITHUB_TOKEN: ${{ github.token }}
-          BILI_RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-          BILI_RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          BILI_RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          # 签名口令由上一步去除空白后写入 GITHUB_ENV。
         run: |
           chmod +x gradlew
           ./gradlew --max-workers=4 \
