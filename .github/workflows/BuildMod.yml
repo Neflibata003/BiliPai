@@ -89,6 +89,13 @@ jobs:
             echo "BILI_RELEASE_STORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
           fi
 
+      # 未配置正式签名时用 debug 签名；固定缓存 debug.keystore，后续 Mod 更新可直接覆盖安装。
+      - name: Keep Mod debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: bilipai-mod-debug-keystore-v1
+
       - name: Build Mod APK
         env:
           # GitHub Packages（Miuix）即使是公开包也需要 token 鉴权。
