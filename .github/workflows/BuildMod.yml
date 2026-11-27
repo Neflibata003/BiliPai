@@ -78,19 +78,42 @@ jobs:
           ls "$HOME/.m2/repository/top/yukonga/miuix/kmp/"
           test -d "$HOME/.m2/repository/top/yukonga/miuix/kmp/miuix-core/$MIUIX_VERSION"
 
-      # 可选：配置 RELEASE_KEYSTORE_BASE64 等 4 个 secrets 后用固定签名，后续版本可直接覆盖升级 Mod 包；
-      # 不配置则每次使用 runner 临时 debug 签名，升级 Mod 包前需先卸载旧 Mod（官方版不受影响）。
-      - name: Configure optional signing
+      # 固定签名：在仓库 Secrets 配置 RELEASE_KEYSTORE_BASE64 / RELEASE_STORE_PASSWORD /
+      # RELEASE_KEY_ALIAS / RELEASE_KEY_PASSWORD 后，所有 Mod 版本使用同一把钥匙签名，可直接覆盖安装。
+      # 未配置时回退到缓存的 debug 签名（同样跨版本保持一致，但缓存 7 天未使用会被 GitHub 清理）。
+      - name: Configure fixed signing from secrets
+        id: signing
         env:
           KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
-            printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            if [ -z "$STORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+              echo "::error::已配置 RELEASE_KEYSTORE_BASE64，但缺少 RELEASE_STORE_PASSWORD / RELEASE_KEY_ALIAS / RELEASE_KEY_PASSWORD，停止构建以免签名变化。"
+              exit 1
+            fi
+            printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.keystore"
+            keytool -list -keystore "$RUNNER_TEMP/release.keystore" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null
             echo "BILI_RELEASE_STORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+            echo "fixed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "fixed=false" >> "$GITHUB_OUTPUT"
           fi
+
+      # 仅用于在运行记录里一眼看出本次签名来源（成功 / 跳过）。
+      - name: "Signing: fixed keystore from secrets"
+        if: steps.signing.outputs.fixed == 'true'
+        run: echo "使用 Secrets 中的固定 keystore 签名"
+
+      - name: "Signing: cached debug key (no secrets)"
+        if: steps.signing.outputs.fixed != 'true'
+        run: echo "未配置签名 Secrets，使用缓存的 debug 签名"
 
       # 未配置正式签名时用 debug 签名；固定缓存 debug.keystore，后续 Mod 更新可直接覆盖安装。
       - name: Keep Mod debug signing key
+        if: steps.signing.outputs.fixed != 'true'
         uses: actions/cache@v4
         with:
           path: ~/.android/debug.keystore
@@ -109,6 +132,7 @@ jobs:
             "-Pbili.build.commitSha=${{ github.sha }}" \
             "-Pbili.build.gitRef=${{ github.ref }}" \
             -Pbili.miuix.mavenLocal=true \
+            "-Pbili.mod.buildNumber=${{ github.run_number }}" \
             assembleMod
 
       - name: Upload APK

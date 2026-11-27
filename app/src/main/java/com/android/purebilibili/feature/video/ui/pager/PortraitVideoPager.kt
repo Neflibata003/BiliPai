@@ -717,8 +717,14 @@ fun PortraitVideoPager(
             recommendationItems.clear()
             resetPortraitPageItems(listOf(initialInfo))
         }
+        // 首屏推荐（相关推荐 / Story 流）也走首页的屏蔽与内容过滤；起播视频及其之前的条目保持原位，
+        // 避免 initialPageIndex 与种子列表错位。
         val filteredRecommendations = filterPortraitOnlyVerticalRecommendations(
-            recommendations = recommendations,
+            recommendations = filterPortraitSeedRecommendationsByContent(
+                recommendations = recommendations,
+                initialBvid = initialBvid,
+                initialInfoBvid = initialInfo.bvid,
+            ),
             enabled = onlyVerticalRecommendations,
             minVerticalRatio = portraitVerticalVideoRatio,
         )
@@ -841,10 +847,12 @@ fun PortraitVideoPager(
     }
     LaunchedEffect(initialInfo.bvid, onlyVerticalRecommendations, recommendationsManagedExternally) {
         if (recommendationsManagedExternally) return@LaunchedEffect
-        val discoveryRecommendations = VideoRepository.getHomeVideos(idx = 0)
-            .getOrNull()
-            .orEmpty()
-            .mapNotNull(::toRelatedVideoForPortraitRecommendation)
+        val discoveryRecommendations = com.android.purebilibili.feature.story.filterPortraitFeedRecommendations(
+            VideoRepository.getHomeVideos(idx = 0)
+                .getOrNull()
+                .orEmpty()
+                .mapNotNull(::toRelatedVideoForPortraitRecommendation)
+        )
         if (discoveryRecommendations.isEmpty()) return@LaunchedEffect
 
         val filteredDiscoveryRecommendations = filterPortraitOnlyVerticalRecommendations(
@@ -2881,14 +2889,56 @@ private fun VideoPageItem(
         aspectRatio = aspectRatio,
         isVerticalContent = isVerticalContent
     )
-    val portraitViewportVerticalOffsetPx = with(density) {
+    val portraitLiquidGlassViewport = com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled
+    val portraitBaseViewportOffsetPx = with(density) {
         resolvePortraitVideoViewportVerticalOffsetDp(
             currentVideoAspect = portraitPagerViewportAspect,
             fillContainer = portraitPagerFillContainer,
             isLandscape = portraitPageWidthPx > portraitPageHeightPx,
-            liquidGlassEnabled = com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled,
+            liquidGlassEnabled = portraitLiquidGlassViewport,
         ).dp.toPx()
     }
+    // 顶部系统栏（含挖孔）+ 竖屏顶栏的底边：弹幕带从这里开始，上移后的横屏画面也不会越过这条线。
+    val portraitTopChromeBottomPx = with(density) {
+        resolvePortraitDanmakuTopInsetPx(
+            visibleStatusBarTopPx = WindowInsets.statusBars.getTop(this),
+            statusBarsIgnoringVisibilityTopPx = WindowInsets.statusBarsIgnoringVisibility.getTop(this),
+            displayCutoutTopPx = WindowInsets.displayCutout.getTop(this),
+        ).coerceAtLeast(0) + PORTRAIT_TOP_BAR_RESERVED_HEIGHT.roundToPx()
+    }
+    val portraitMinimumDanmakuBandPx = with(density) { PORTRAIT_MIN_DANMAKU_BAND_HEIGHT.roundToPx() }
+    // 横屏比例视频上移到偏上位置（参考官方竖屏）：上方留白给弹幕，下方留白给字幕与信息区。
+    val portraitLandscapeLiftPx = remember(
+        portraitPageWidthPx, portraitPageHeightPx, portraitPagerViewportAspect, portraitPagerFillContainer,
+        aspectRatio, pageVideoSize.width, pageVideoSize.height, portraitLiquidGlassViewport,
+        portraitBaseViewportOffsetPx, portraitTopChromeBottomPx, portraitMinimumDanmakuBandPx,
+    ) {
+        val viewport = resolvePortraitPlayerViewportSize(
+            containerWidth = portraitPageWidthPx,
+            containerHeight = portraitPageHeightPx,
+            currentVideoAspect = portraitPagerViewportAspect,
+            fillContainer = portraitPagerFillContainer,
+            aspectRatio = aspectRatio,
+            videoWidth = pageVideoSize.width,
+            videoHeight = pageVideoSize.height,
+            liquidGlassEnabled = portraitLiquidGlassViewport,
+        )
+        resolvePortraitLandscapeVideoLiftPx(
+            containerWidthPx = portraitPageWidthPx,
+            containerHeightPx = portraitPageHeightPx,
+            viewportWidthPx = viewport.width,
+            viewportHeightPx = viewport.height,
+            videoAspect = resolvePortraitContentAspect(
+                videoWidth = pageVideoSize.width,
+                videoHeight = pageVideoSize.height,
+                fallbackAspect = portraitPagerViewportAspect,
+            ),
+            fillContainer = portraitPagerFillContainer,
+            baseOffsetPx = portraitBaseViewportOffsetPx,
+            minPictureTopPx = portraitTopChromeBottomPx + portraitMinimumDanmakuBandPx,
+        )
+    }
+    val portraitViewportVerticalOffsetPx = portraitBaseViewportOffsetPx + portraitLandscapeLiftPx
     // 评论 / UP 半屏共用上缩：取较大进度；下拉 UP 预览时 progress 下降，视频跟手回位。
     val overlaySheetExpansion = resolvePortraitOverlaySheetExpansion(
         commentVisibilityProgress = commentSheetVisibilityProgress,
@@ -3473,7 +3523,8 @@ private fun VideoPageItem(
             videoHeight = exoPlayer.videoSize.height,
             fitVideoInsideViewport = !portraitPagerFillContainer,
             viewportOffsetYPx = portraitViewportVerticalOffsetPx,
-            safeTopPx = with(density) { pageDanmakuTopInset.roundToPx() },
+            // 弹幕带严格限定在「状态栏 + 顶栏」下方到画面上边缘之间，不遮挡系统栏与顶部按钮。
+            safeTopPx = maxOf(with(density) { pageDanmakuTopInset.roundToPx() }, portraitTopChromeBottomPx),
             minimumHeightPx = resolveDanmakuLayerLineHeightPx(
                 fontSize = resolveDanmakuTextSizePx(
                     context.resources.displayMetrics.density,
@@ -3528,6 +3579,7 @@ private fun VideoPageItem(
                 aspectRatio = aspectRatio,
                 videoWidth = pageVideoSize.width,
                 videoHeight = pageVideoSize.height,
+                extraOffsetYPx = portraitLandscapeLiftPx,
             ) {
                 key(currentPlayingBvid, currentPlayingCid, bvid, preferTexture) {
                     Box(
@@ -3590,7 +3642,8 @@ private fun VideoPageItem(
                         .align(Alignment.TopCenter)
                         .offset(y = with(density) { region.topPx.toDp() })
                         .fillMaxWidth()
-                        .height(with(density) { region.heightPx.toDp() }),
+                        .height(with(density) { region.heightPx.toDp() })
+                        .clipToBounds(),
                 )
             }
         }
@@ -3639,6 +3692,7 @@ private fun VideoPageItem(
                 videoWidth = pageVideoSize.width,
                 videoHeight = pageVideoSize.height,
                 showBuffering = isLoading && isCurrentPage && !portraitOverlayVisible,
+                extraOffsetYPx = portraitLandscapeLiftPx,
                 modifier = mediaLayerModifier,
             )
         }
@@ -4027,9 +4081,16 @@ private fun VideoPageItem(
                 coverUrl = cover,
                 // 竖屏信息区与分享卡片共用播放量；Story 条目缺统计时回落到已加载的详情。
                 videoSharePlayCountText = resolvePortraitPlayCountText(
-                    detailViews = portraitDetailInfo?.takeIf { it.bvid == bvid }?.stat?.view,
+                    detailViews = portraitDetailInfo?.takeIf { it.bvid == bvid }?.stat?.view?.takeIf { it > 0 }
+                        ?: currentSuccess?.takeIf { it.info.bvid == bvid }?.info?.stat?.view,
                     seedViews = stat.view,
                 ),
+                videoOwnerFansText = currentSuccess
+                    ?.takeIf { it.info.bvid == bvid && authorMid > 0L && it.info.owner.mid == authorMid }
+                    ?.ownerFollowerCount
+                    ?.takeIf { it > 0 }
+                    ?.let { "${FormatUtils.formatStat(it.toLong())}粉丝" }
+                    .orEmpty(),
                 currentQuality = selectedQualityId,
                 currentVideoUrl = videoUrl,
                 currentAudioUrl = audioUrl,
@@ -4537,7 +4598,36 @@ private fun VideoPageItem(
             ?: 0L
         // 与播放器字幕叠层保持同一条策略：小窗里不合成字幕（shouldKeepSubtitleOverlayMounted）。
         if (!isInPipMode) {
+        // 横屏比例视频的字幕放在画面下边缘下方的留白里；竖屏视频与评论展开时沿用原底部布局。
+        val portraitSubtitleViewport = resolvePortraitPlayerViewportSize(
+            containerWidth = portraitPageWidthPx,
+            containerHeight = portraitPageHeightPx,
+            currentVideoAspect = portraitPagerViewportAspect,
+            fillContainer = portraitPagerFillContainer,
+            aspectRatio = aspectRatio,
+            videoWidth = pageVideoSize.width,
+            videoHeight = pageVideoSize.height,
+            liquidGlassEnabled = portraitLiquidGlassViewport,
+        )
+        val portraitSubtitleAnchorTopPx = resolvePortraitSubtitleAnchorTopPx(
+            containerWidthPx = portraitPageWidthPx,
+            containerHeightPx = portraitPageHeightPx,
+            viewportWidthPx = portraitSubtitleViewport.width,
+            viewportHeightPx = portraitSubtitleViewport.height,
+            videoAspect = resolvePortraitContentAspect(
+                videoWidth = pageVideoSize.width,
+                videoHeight = pageVideoSize.height,
+                fallbackAspect = portraitPagerViewportAspect,
+            ),
+            fillContainer = portraitPagerFillContainer,
+            viewportOffsetYPx = portraitViewportVerticalOffsetPx,
+            videoScale = scale,
+            videoTranslationYPx = panY,
+            gapPx = with(density) { 8.dp.roundToPx() },
+            minimumBandPx = with(density) { 96.dp.roundToPx() },
+        )
         PortraitSubtitleHost(
+            anchorTopPx = portraitSubtitleAnchorTopPx,
             success = currentSuccess,
             player = exoPlayer,
             pageBvid = bvid,
@@ -4735,6 +4825,26 @@ private fun VideoPageItem(
             )
         }
     }
+}
+
+/**
+ * 竖屏流种子推荐的内容过滤：起播条目（及其之前的条目）原样保留，其余按首页规则过滤。
+ * 过滤失败时 [filterPortraitFeedRecommendations] 会返回原列表，不会让竖屏流变空。
+ */
+internal suspend fun filterPortraitSeedRecommendationsByContent(
+    recommendations: List<RelatedVideo>,
+    initialBvid: String,
+    initialInfoBvid: String,
+): List<RelatedVideo> {
+    if (recommendations.isEmpty()) return recommendations
+    val protectedCount = if (initialBvid == initialInfoBvid) {
+        0
+    } else {
+        (recommendations.indexOfFirst { it.bvid == initialBvid } + 1).coerceAtLeast(0)
+    }
+    val head = recommendations.take(protectedCount)
+    val tail = recommendations.drop(protectedCount)
+    return head + com.android.purebilibili.feature.story.filterPortraitFeedRecommendations(tail)
 }
 
 internal fun resolvePortraitInitialPageIndex(
@@ -4993,6 +5103,81 @@ internal fun resolvePortraitVideoViewportVerticalOffsetDp(
     return if (currentVideoAspect > 1f) -48 else 0
 }
 
+/** 竖屏顶栏（返回 / 在看人数 / 搜索 / 更多）预留高度，位于状态栏与挖孔下方。 */
+internal val PORTRAIT_TOP_BAR_RESERVED_HEIGHT = 52.dp
+
+/** 横屏视频上移后，顶栏与画面之间至少保留的弹幕带高度。 */
+internal val PORTRAIT_MIN_DANMAKU_BAND_HEIGHT = 72.dp
+
+/** 横屏视频在竖屏页面中的目标中心位置（占页面高度的比例），参考官方竖屏偏上布局。 */
+internal const val PORTRAIT_LANDSCAPE_VIDEO_CENTER_FRACTION = 0.38f
+
+/** 有解码尺寸时用真实宽高比，否则回退到已知比例；非法值统一回退。 */
+internal fun resolvePortraitContentAspect(videoWidth: Int, videoHeight: Int, fallbackAspect: Float): Float {
+    if (videoWidth > 0 && videoHeight > 0) return videoWidth.toFloat() / videoHeight.toFloat()
+    return fallbackAspect.takeIf { it.isFinite() && it > 0f } ?: (9f / 16f)
+}
+
+/**
+ * 横屏比例视频在竖屏页面中的上移量（像素，<= 0）。只在 FIT（非铺满）且页面为竖向时生效；
+ * 画面上边缘不会高于 [minPictureTopPx]，空间不足时保持原位，所有输入非法时返回 0。
+ */
+internal fun resolvePortraitLandscapeVideoLiftPx(
+    containerWidthPx: Int,
+    containerHeightPx: Int,
+    viewportWidthPx: Int,
+    viewportHeightPx: Int,
+    videoAspect: Float,
+    fillContainer: Boolean,
+    baseOffsetPx: Float,
+    minPictureTopPx: Int,
+    targetCenterFraction: Float = PORTRAIT_LANDSCAPE_VIDEO_CENTER_FRACTION,
+): Float {
+    if (fillContainer || containerWidthPx <= 0 || containerHeightPx <= containerWidthPx) return 0f
+    if (viewportWidthPx <= 0 || viewportHeightPx <= 0) return 0f
+    if (!videoAspect.isFinite() || videoAspect <= 1f) return 0f
+    if (!baseOffsetPx.isFinite() || !targetCenterFraction.isFinite()) return 0f
+    val pictureHeight = minOf(viewportHeightPx.toFloat(), viewportWidthPx / videoAspect)
+    if (pictureHeight <= 0f || pictureHeight >= containerHeightPx) return 0f
+    val currentTop = (containerHeightPx - pictureHeight) / 2f + baseOffsetPx
+    val targetTop = containerHeightPx * targetCenterFraction.coerceIn(0.2f, 0.5f) - pictureHeight / 2f
+    val desiredTop = maxOf(targetTop, minPictureTopPx.coerceAtLeast(0).toFloat())
+    val lift = desiredTop - currentTop
+    return if (lift < 0f) lift else 0f
+}
+
+/**
+ * 横屏比例视频画面下边缘下方的字幕锚点（距页面顶部的像素）。考虑上移、缩放与平移；
+ * 竖屏视频、铺满模式或下方留白不足 [minimumBandPx] 时返回 null，由调用方回退到底部布局。
+ */
+internal fun resolvePortraitSubtitleAnchorTopPx(
+    containerWidthPx: Int,
+    containerHeightPx: Int,
+    viewportWidthPx: Int,
+    viewportHeightPx: Int,
+    videoAspect: Float,
+    fillContainer: Boolean,
+    viewportOffsetYPx: Float,
+    videoScale: Float,
+    videoTranslationYPx: Float,
+    gapPx: Int,
+    minimumBandPx: Int,
+): Int? {
+    if (fillContainer || containerWidthPx <= 0 || containerHeightPx <= containerWidthPx) return null
+    if (viewportWidthPx <= 0 || viewportHeightPx <= 0) return null
+    if (!videoAspect.isFinite() || videoAspect <= 1f) return null
+    if (!viewportOffsetYPx.isFinite() || !videoScale.isFinite() || videoScale <= 0f ||
+        !videoTranslationYPx.isFinite()
+    ) return null
+    val pictureHeight = minOf(viewportHeightPx.toFloat(), viewportWidthPx / videoAspect) * videoScale
+    val viewportCenter = (containerHeightPx - viewportHeightPx) / 2f + viewportOffsetYPx + viewportHeightPx / 2f
+    val pictureBottom = viewportCenter + pictureHeight / 2f + videoTranslationYPx
+    if (!pictureBottom.isFinite()) return null
+    val anchor = kotlin.math.ceil(pictureBottom).toInt() + gapPx.coerceAtLeast(0)
+    if (anchor < 0 || containerHeightPx - anchor < minimumBandPx.coerceAtLeast(0)) return null
+    return anchor
+}
+
 internal fun resolvePortraitPlayerViewportSize(
     containerWidth: Int,
     containerHeight: Int,
@@ -5032,6 +5217,7 @@ internal fun PortraitVideoViewportContainer(
     aspectRatio: VideoAspectRatio? = null,
     videoWidth: Int = 0,
     videoHeight: Int = 0,
+    extraOffsetYPx: Float = 0f,
     content: @Composable BoxScope.() -> Unit
 ) {
     val liquidGlassEnabled = com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled
@@ -5064,7 +5250,9 @@ internal fun PortraitVideoViewportContainer(
                         fillContainer = fillContainer,
                         isLandscape = isLandscape,
                         liquidGlassEnabled = liquidGlassEnabled,
-                    ).dp
+                    ).dp + with(density) {
+                        (if (extraOffsetYPx.isFinite() && !isLandscape) extraOffsetYPx else 0f).toDp()
+                    }
                 )
         ) {
             content()

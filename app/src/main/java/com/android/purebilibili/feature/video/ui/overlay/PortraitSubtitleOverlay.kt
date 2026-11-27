@@ -122,7 +122,9 @@ fun PortraitSubtitleHost(
     isMuted: Boolean,
     onSubtitleTrackSelected: (String) -> Unit,
     onControlsChange: (SubtitleControlUiState, SubtitleControlCallbacks) -> Unit = { _, _ -> },
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // 竖屏横屏比例视频：字幕顶边锚定到画面下边缘下方（像素）；null 时沿用底部布局。
+    anchorTopPx: Int? = null,
 ) {
     val featureEnabled = isSubtitleFeatureEnabledForUser()
     val belongsToPage = resolvePortraitSubtitleBelongsToPage(
@@ -318,13 +320,16 @@ fun PortraitSubtitleHost(
         if (keepMounted && subtitleSession.selectedTrackKey == null) {
             val isTopPlacement = subtitleAppearance.placement ==
                 com.android.purebilibili.feature.video.ui.components.SubtitlePlacement.TOP
+            val anchoredBelowVideo = anchorTopPx != null && anchorTopPx >= 0 && !isTopPlacement &&
+                commentExpansionProgress <= 0.01f
+            val anchorOffsetPx = if (anchoredBelowVideo) anchorTopPx ?: 0 else 0
             Column(
                 modifier = Modifier
-                    .align(if (isTopPlacement) Alignment.TopCenter else Alignment.BottomCenter)
+                    .align(if (isTopPlacement || anchoredBelowVideo) Alignment.TopCenter else Alignment.BottomCenter)
                     .offset {
                         IntOffset(
                             x = 0,
-                            y = with(density) {
+                            y = anchorOffsetPx + with(density) {
                                 (configuration.screenHeightDp * subtitleVerticalOffsetFraction)
                                     .dp
                                     .roundToPx()
@@ -336,16 +341,22 @@ fun PortraitSubtitleHost(
                             .fillMaxWidth(0.92f)
                             .padding(horizontal = 12.dp)
                             .then(
-                                if (isTopPlacement) Modifier.statusBarsPadding().padding(top = subtitleAppearance.bottomPadding.dp)
-                                else Modifier.padding(bottom = bottomPaddingDp.dp)
+                                when {
+                                    isTopPlacement -> Modifier.statusBarsPadding().padding(top = subtitleAppearance.bottomPadding.dp)
+                                    anchoredBelowVideo -> Modifier
+                                    else -> Modifier.padding(bottom = bottomPaddingDp.dp)
+                                }
                             )
                             .padding(vertical = 6.dp)
                         else Modifier
                             .fillMaxWidth()
                             .padding(horizontal = subtitleAppearance.horizontalPadding.dp)
                             .then(
-                                if (isTopPlacement) Modifier.statusBarsPadding().padding(top = subtitleAppearance.bottomPadding.dp)
-                                else Modifier.padding(bottom = (bottomPaddingDp + subtitleAppearance.bottomPadding).dp)
+                                when {
+                                    isTopPlacement -> Modifier.statusBarsPadding().padding(top = subtitleAppearance.bottomPadding.dp)
+                                    anchoredBelowVideo -> Modifier
+                                    else -> Modifier.padding(bottom = (bottomPaddingDp + subtitleAppearance.bottomPadding).dp)
+                                }
                             )
                     )
                     .then(

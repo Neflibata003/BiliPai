@@ -37,6 +37,11 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withLink
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -149,12 +154,13 @@ internal fun PortraitOnlineCountLabel(onlineCount: String, modifier: Modifier = 
     }
 }
 
-/** 竖屏信息区里可点进的入口（分 P、合集）。 */
-private class PortraitMetadataLink(val label: String, val clickLabel: String, val onClick: () -> Unit)
+/** 标题前缀（合集 · 第 N 集 / 分 P）：点按打开对应列表，标题其余部分点按展开。 */
+private const val PORTRAIT_TITLE_PREFIX_TAG = "portrait_title_prefix"
 
 /**
- * 竖屏全屏的信息区独立于顶部导航；展开状态只属于当前稿件与标题。
- * 布局自上而下：UP 主（头像 + 名称 + 播放量/在看人数 + 关注）→ 标题（点按展开）→ 合集 / 分 P / 视频详情入口。
+ * 竖屏全屏的信息区（参考官方竖屏布局）；展开状态只属于当前稿件与标题。
+ * 自上而下：UP 主（头像 + 名称 + 粉丝数 + 关注）→「合集 · 第 N 集 | 标题」+ 播放量。
+ * 播放量固定在标题右侧单独排版，长标题只会省略标题本身，不会截掉播放量。
  */
 @Composable
 internal fun PortraitPlayerMetadata(
@@ -171,38 +177,49 @@ internal fun PortraitPlayerMetadata(
     onCollectionClick: () -> Unit,
     modifier: Modifier = Modifier,
     onAuthorClick: (() -> Unit)? = null,
-    onOpenDetails: (() -> Unit)? = null,
-    statsText: String? = null,
+    playCountText: String? = null,
+    authorSubtitle: String? = null,
 ) {
     var expanded by remember(bvid, title) { mutableStateOf(false) }
     var titleOverflows by remember(bvid, title) { mutableStateOf(false) }
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val accent = AppContentColors.accent()
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (authorName.isNotBlank()) {
             PortraitMetadataAuthorRow(
                 authorKey = bvid,
                 authorName = authorName,
                 authorFace = authorFace,
-                subtitle = statsText,
+                subtitle = authorSubtitle,
                 isFollowing = isFollowing,
                 followStatusKnown = followStatusKnown,
                 onFollowClick = onFollowClick,
                 onAuthorClick = onAuthorClick,
                 modifier = Modifier.fillMaxWidth(),
             )
-        } else if (!statsText.isNullOrBlank()) {
-            AppText(
-                text = statsText,
-                color = Color.White.copy(alpha = 0.72f),
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                tapToCopyEnabled = false,
-                modifier = Modifier.fillMaxWidth().testTag("portrait_player_stats"),
-            )
         }
-        if (title.isNotBlank()) {
+        val prefix = collectionLabel ?: episodeLabel
+        val onPrefixClick = if (collectionLabel != null) onCollectionClick else onEpisodeClick
+        val latestPrefixClick by rememberUpdatedState(onPrefixClick)
+        if (title.isNotBlank() || !prefix.isNullOrBlank() || !playCountText.isNullOrBlank()) {
             val canToggle = expanded || titleOverflows
+            val annotatedTitle = remember(prefix, title, accent) {
+                buildAnnotatedString {
+                    if (!prefix.isNullOrBlank()) {
+                        withLink(
+                            LinkAnnotation.Clickable(
+                                tag = PORTRAIT_TITLE_PREFIX_TAG,
+                                linkInteractionListener = { latestPrefixClick() },
+                            ),
+                        ) {
+                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White)) {
+                                append(prefix)
+                            }
+                        }
+                        withStyle(SpanStyle(color = Color.White.copy(alpha = 0.5f))) { append("  |  ") }
+                    }
+                    append(title)
+                }
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -216,7 +233,7 @@ internal fun PortraitPlayerMetadata(
                 verticalAlignment = Alignment.Bottom,
             ) {
                 AppText(
-                    text = title,
+                    text = annotatedTitle,
                     color = Color.White,
                     fontSize = 15.sp,
                     lineHeight = 21.sp,
@@ -225,45 +242,28 @@ internal fun PortraitPlayerMetadata(
                     overflow = TextOverflow.Ellipsis,
                     tapToCopyEnabled = false,
                     onTextLayout = { if (!expanded) titleOverflows = it.hasVisualOverflow },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f, fill = false),
                 )
+                if (!playCountText.isNullOrBlank()) {
+                    AppText(
+                        text = playCountText,
+                        color = Color.White.copy(alpha = 0.78f),
+                        fontSize = 13.sp,
+                        lineHeight = 21.sp,
+                        maxLines = 1,
+                        softWrap = false,
+                        tapToCopyEnabled = false,
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .testTag("portrait_player_stats"),
+                    )
+                }
                 if (canToggle) {
                     AppIcon(
                         imageVector = if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
                         contentDescription = null,
                         tint = Color.White.copy(alpha = 0.8f),
-                        modifier = Modifier.padding(start = 4.dp, bottom = 1.dp).size(20.dp),
-                    )
-                }
-            }
-        }
-        val links = listOfNotNull(
-            episodeLabel?.let { PortraitMetadataLink(it, "打开选集", onEpisodeClick) },
-            collectionLabel?.let { PortraitMetadataLink(it, "打开合集", onCollectionClick) },
-        )
-        if (links.isNotEmpty() || onOpenDetails != null) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                links.forEach { link ->
-                    PortraitMetadataChip(
-                        icon = Icons.Outlined.VideoLibrary,
-                        label = link.label,
-                        clickLabel = link.clickLabel,
-                        onClick = link.onClick,
-                        fillLabel = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                if (onOpenDetails != null) {
-                    PortraitMetadataChip(
-                        icon = Icons.Outlined.Newspaper,
-                        label = "视频详情",
-                        clickLabel = "打开视频详情",
-                        onClick = onOpenDetails,
-                        fillLabel = false,
+                        modifier = Modifier.padding(start = 2.dp, bottom = 1.dp).size(20.dp),
                     )
                 }
             }
@@ -271,7 +271,7 @@ internal fun PortraitPlayerMetadata(
     }
 }
 
-/** 头像 + 名称 + 播放量/在看人数，右侧为实心关注按钮；取关仍走确认流程。 */
+/** 头像 + 名称 + 粉丝数，右侧为实心关注按钮；取关仍走确认流程。 */
 @Composable
 private fun PortraitMetadataAuthorRow(
     authorKey: String,
@@ -308,9 +308,9 @@ private fun PortraitMetadataAuthorRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             val avatarModifier = Modifier
-                .size(42.dp)
+                .size(44.dp)
                 .clip(CircleShape)
-                .border(1.dp, Color.White.copy(alpha = 0.72f), CircleShape)
+                .border(1.5.dp, Color.White.copy(alpha = 0.85f), CircleShape)
             if (authorFace.isNotBlank()) {
                 AsyncImage(
                     model = FormatUtils.fixImageUrl(authorFace),
@@ -330,8 +330,8 @@ private fun PortraitMetadataAuthorRow(
                 AppText(
                     text = authorName,
                     color = Color.White,
-                    fontSize = 15.sp,
-                    lineHeight = 20.sp,
+                    fontSize = 16.sp,
+                    lineHeight = 21.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     softWrap = false,
@@ -348,7 +348,6 @@ private fun PortraitMetadataAuthorRow(
                         softWrap = false,
                         overflow = TextOverflow.Ellipsis,
                         tapToCopyEnabled = false,
-                        modifier = Modifier.testTag("portrait_player_stats"),
                     )
                 }
             }
@@ -357,7 +356,7 @@ private fun PortraitMetadataAuthorRow(
         Box(
             modifier = Modifier
                 .followActionAnchor()
-                .height(30.dp)
+                .height(32.dp)
                 .clip(RoundedCornerShape(50))
                 .background(if (followStatusKnown && !isFollowing) accent else Color.White.copy(alpha = 0.16f))
                 .semantics { selected = following }
@@ -370,7 +369,7 @@ private fun PortraitMetadataAuthorRow(
                     },
                     onClick = appActionWithFeedback(followAction),
                 )
-                .padding(horizontal = 14.dp),
+                .padding(horizontal = 16.dp),
             contentAlignment = Alignment.Center,
         ) {
             AppText(
@@ -380,7 +379,7 @@ private fun PortraitMetadataAuthorRow(
                     else -> "+ 关注"
                 },
                 color = if (following) Color.White.copy(alpha = 0.82f) else Color.White,
-                fontSize = 13.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 softWrap = false,
@@ -390,213 +389,108 @@ private fun PortraitMetadataAuthorRow(
     }
 }
 
-/** 半透明胶囊入口：图标 + 文案 + 箭头；[fillLabel] 为 true 时箭头贴右端。 */
-@Composable
-private fun PortraitMetadataChip(
-    icon: ImageVector,
-    label: String,
-    clickLabel: String,
-    onClick: () -> Unit,
-    fillLabel: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .height(34.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color.White.copy(alpha = 0.12f))
-            .clickable(role = Role.Button, onClickLabel = clickLabel, onClick = appActionWithFeedback(onClick))
-            .padding(start = 10.dp, end = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        AppIcon(icon, null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(16.dp))
-        AppText(
-            text = label,
-            color = Color.White,
-            fontSize = 12.sp,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis,
-            tapToCopyEnabled = false,
-            modifier = Modifier.weight(1f, fill = fillLabel),
-        )
-        AppIcon(
-            Icons.AutoMirrored.Rounded.KeyboardArrowRight, null,
-            tint = Color.White.copy(alpha = 0.7f),
-            modifier = Modifier.size(16.dp),
-        )
-    }
-}
-
-/** 底栏画质文案只保留清晰度本身（「720P 准高清」→「720P」），避免挤占弹幕输入框。 */
+/** 底栏画质文案只保留清晰度本身（「720P 准高清」→「720P」）。 */
 internal fun compactPortraitQualityLabel(label: String): String {
     val trimmed = label.trim()
     val head = trimmed.substringBefore(' ')
     return if (head.isNotEmpty() && head.first().isDigit()) head else trimmed
 }
 
-/** 倍速为 1.0 时显示「倍速」，其余显示具体倍率。 */
+/** 倍速为 1.0 时显示「正常」，其余显示具体倍率。 */
 internal fun portraitSpeedLabel(speed: Float): String =
-    if (speed == 1f) "倍速" else "${speed}×"
+    if (speed == 1f) "正常" else "${speed}×"
+
+/** 竖屏播放量文案：「16.9万播放」；未知或为 0 时返回 null。 */
+internal fun resolvePortraitPlayCountLabel(playCountText: String): String? =
+    playCountText.trim().takeIf { it.isNotEmpty() && it != "0" && it != "-" }?.let { "${it}播放" }
 
 /**
- * 竖屏进度行：当前时间 —— 进度条 —— 总时长。
- * 时间两侧使用等宽数字并按总时长预留宽度，播放过程中进度条不会左右跳动。
+ * 竖屏底栏（参考官方竖屏）：发弹幕胶囊（内含弹幕开关）· 详情页 · 全屏。
+ * 播放 / 暂停、倍速、画质、字幕等其余播控收进「更多」菜单；点按画面中央也可暂停。
  */
 @Composable
-internal fun PortraitProgressRow(
-    positionProvider: () -> Long,
-    durationProvider: () -> Long,
-    modifier: Modifier = Modifier,
-    progressBar: @Composable BoxScope.() -> Unit,
-) {
-    val seconds by remember(positionProvider) { derivedStateOf { positionProvider() / 1000L } }
-    val durationSeconds by remember(durationProvider) { derivedStateOf { durationProvider() / 1000L } }
-    val position = FormatUtils.formatDuration(seconds.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt())
-    val duration = FormatUtils.formatDuration(durationSeconds.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt())
-    val style = remember {
-        TextStyle(fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = "tnum")
-    }
-    val measurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    val longest = if (position.length > duration.length) position else duration
-    val labelWidth = remember(longest.length, duration, measurer, density) {
-        with(density) { measurer.measure(longest, style).size.width.toDp() + 2.dp }
-    }
-    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-        AppText(
-            text = position,
-            color = Color.White,
-            style = style,
-            textAlign = TextAlign.Start,
-            maxLines = 1,
-            softWrap = false,
-            tapToCopyEnabled = false,
-            modifier = Modifier.width(labelWidth).testTag("player_time_viewport"),
-        )
-        Box(
-            modifier = Modifier.weight(1f).fillMaxHeight().padding(horizontal = 8.dp),
-            content = progressBar,
-        )
-        AppText(
-            text = duration,
-            color = Color.White.copy(alpha = 0.7f),
-            style = style,
-            textAlign = TextAlign.End,
-            maxLines = 1,
-            softWrap = false,
-            tapToCopyEnabled = false,
-            modifier = Modifier.width(labelWidth),
-        )
-    }
-}
-
-/**
- * 竖屏底部操作行：播放/暂停 · 弹幕输入框（内含弹幕开关）· 字幕 · 倍速 · 画质 · 横屏（或退出）。
- * 输入框占据剩余宽度，其余按钮固定槽宽，窄屏上优先压缩输入框而不是裁掉按钮。
- */
-@Composable
-internal fun PortraitPlaybackControls(
-    isPlaying: Boolean,
-    onPlayPause: () -> Unit,
-    speed: Float,
-    quality: String,
-    onSpeedClick: () -> Unit,
-    onQualityClick: () -> Unit,
-    speedModifier: Modifier,
-    qualityModifier: Modifier,
+internal fun PortraitBottomActions(
     danmakuEnabled: Boolean,
     onDanmakuToggle: () -> Unit,
     onSendDanmakuClick: () -> Unit,
-    subtitleControlState: SubtitleControlUiState,
-    onSubtitleClick: () -> Unit,
-    subtitleModifier: Modifier,
+    onOpenDetails: (() -> Unit)?,
     onExitFullscreen: () -> Unit,
     modifier: Modifier = Modifier,
     onEnterLandscape: (() -> Unit)? = null,
 ) {
-    val subtitleActive = subtitleControlState.trackAvailable && subtitleControlState.enabled
     val accent = AppContentColors.accent()
-    Row(modifier = modifier.heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(width = 40.dp, height = 48.dp)
-                .testTag("player_play_pause")
-                .clickable(
-                    role = Role.Button,
-                    onClickLabel = if (isPlaying) "暂停播放" else "开始播放",
-                    onClick = appActionWithFeedback(onPlayPause),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            AppIcon(
-                imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                contentDescription = if (isPlaying) "暂停播放" else "开始播放",
-                tint = Color.White,
-                modifier = Modifier.size(26.dp),
-            )
-        }
+    Row(
+        modifier = modifier.heightIn(min = 52.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         PortraitDanmakuPill(
             enabled = danmakuEnabled,
             onToggle = onDanmakuToggle,
             onSend = onSendDanmakuClick,
             accent = accent,
-            modifier = Modifier.weight(1f).padding(start = 4.dp, end = 4.dp),
+            modifier = Modifier.weight(1f).padding(end = 12.dp),
         )
-        // 字幕入口常驻；轨道未就绪或不存在时由菜单说明，避免底栏入口忽隐忽现。
-        AppIconButton(
-            onClick = onSubtitleClick,
-            modifier = Modifier.size(width = 36.dp, height = 48.dp).then(subtitleModifier).semantics {
-                stateDescription = if (subtitleActive) "字幕已开启" else "字幕已关闭"
-            },
-        ) {
-            AppIcon(
-                imageVector = if (subtitleActive) Icons.Filled.ClosedCaption else Icons.Outlined.ClosedCaptionOff,
-                contentDescription = "字幕",
-                tint = if (subtitleActive) accent else Color.White.copy(alpha = 0.75f),
-                modifier = Modifier.size(22.dp),
-            )
-        }
-        PortraitPlaybackTextAction(
-            text = portraitSpeedLabel(speed), description = "倍速", onClick = onSpeedClick,
-            modifier = speedModifier,
-        )
-        if (quality.isNotBlank()) {
-            PortraitPlaybackTextAction(
-                text = compactPortraitQualityLabel(quality), description = "画质：$quality", onClick = onQualityClick,
-                modifier = qualityModifier,
+        if (onOpenDetails != null) {
+            PortraitBottomIconAction(
+                icon = Icons.Outlined.Newspaper,
+                label = "详情页",
+                onClick = onOpenDetails,
+                modifier = Modifier.testTag("player_open_details"),
             )
         }
         if (onEnterLandscape != null) {
-            // 竖屏流里返回键已负责退出；末端按钮改为直接切到横屏全屏。
-            AppIconButton(
+            // 横屏比例视频：直接切到横屏全屏。
+            PortraitBottomIconAction(
+                icon = Icons.Rounded.ScreenRotation,
+                label = "全屏",
                 onClick = onEnterLandscape,
-                modifier = Modifier
-                    .size(width = 40.dp, height = 48.dp)
-                    .testTag("player_landscape_toggle"),
-            ) {
-                AppIcon(
-                    imageVector = Icons.Rounded.ScreenRotation,
-                    contentDescription = "横屏全屏",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
+                modifier = Modifier.testTag("player_landscape_toggle"),
+            )
         } else {
-            AppIconButton(
+            PortraitBottomIconAction(
+                icon = Icons.Outlined.FullscreenExit,
+                label = stringResource(R.string.player_exit_fullscreen),
                 onClick = onExitFullscreen,
-                modifier = Modifier
-                    .size(width = 40.dp, height = 48.dp)
-                    .testTag("player_fullscreen_toggle"),
-            ) {
-                AppIcon(
-                    imageVector = Icons.Outlined.FullscreenExit,
-                    contentDescription = stringResource(R.string.player_exit_fullscreen),
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
+                showLabel = false,
+                modifier = Modifier.testTag("player_fullscreen_toggle"),
+            )
+        }
+    }
+}
+
+/** 底栏图标按钮：图标 + 小字标签，固定 52dp 槽宽，满足 48dp 触控高度。 */
+@Composable
+private fun PortraitBottomIconAction(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    showLabel: Boolean = true,
+) {
+    Column(
+        modifier = modifier
+            .size(width = 52.dp, height = 52.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(role = Role.Button, onClickLabel = label, onClick = appActionWithFeedback(onClick)),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        AppIcon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = Color.White,
+            modifier = Modifier.size(24.dp),
+        )
+        if (showLabel) {
+            AppText(
+                text = label,
+                color = Color.White.copy(alpha = 0.82f),
+                fontSize = 10.sp,
+                lineHeight = 13.sp,
+                maxLines = 1,
+                softWrap = false,
+                tapToCopyEnabled = false,
+            )
         }
     }
 }
@@ -612,9 +506,9 @@ private fun PortraitDanmakuPill(
 ) {
     Row(
         modifier = modifier
-            .height(36.dp)
+            .height(40.dp)
             .clip(RoundedCornerShape(50))
-            .background(Color.White.copy(alpha = 0.14f)),
+            .background(Color.White.copy(alpha = 0.16f)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -623,13 +517,13 @@ private fun PortraitDanmakuPill(
                 .fillMaxHeight()
                 .testTag("player_send_danmaku")
                 .clickable(role = Role.Button, onClickLabel = "发弹幕", onClick = appActionWithFeedback(onSend))
-                .padding(start = 14.dp, end = 6.dp),
+                .padding(start = 16.dp, end = 6.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
             AppText(
                 text = "发弹幕",
-                color = Color.White.copy(alpha = 0.62f),
-                fontSize = 13.sp,
+                color = Color.White.copy(alpha = 0.6f),
+                fontSize = 14.sp,
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis,
@@ -639,47 +533,56 @@ private fun PortraitDanmakuPill(
         Box(
             Modifier
                 .width(1.dp)
-                .height(14.dp)
+                .height(16.dp)
                 .background(Color.White.copy(alpha = 0.24f)),
         )
         NativeDanmakuToggleButton(
             enabled = enabled,
             onToggle = onToggle,
-            activeTint = accent,
-            inactiveTint = Color.White.copy(alpha = 0.6f),
-            iconSize = 20.dp,
+            activeTint = Color.White,
+            inactiveTint = Color.White.copy(alpha = 0.55f),
+            iconSize = 22.dp,
             modifier = Modifier
-                .width(44.dp)
+                .width(52.dp)
                 .fillMaxHeight()
                 .testTag("player_danmaku_toggle"),
         )
     }
 }
 
+/** 拖动细进度条时显示在进度条上方的「当前 / 总时长」。 */
 @Composable
-private fun PortraitPlaybackTextAction(
-    text: String,
-    description: String,
-    onClick: () -> Unit,
+internal fun PortraitScrubTimeLabel(
+    positionProvider: () -> Long,
+    durationProvider: () -> Long,
     modifier: Modifier = Modifier,
 ) {
-    Box(
+    val seconds by remember(positionProvider) { derivedStateOf { positionProvider() / 1000L } }
+    val durationSeconds by remember(durationProvider) { derivedStateOf { durationProvider() / 1000L } }
+    val position = FormatUtils.formatDuration(seconds.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt())
+    val duration = FormatUtils.formatDuration(durationSeconds.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt())
+    AppText(
+        text = "$position / $duration",
+        color = Color.White,
+        style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"),
+        maxLines = 1,
+        softWrap = false,
+        tapToCopyEnabled = false,
         modifier = modifier
-            .heightIn(min = 48.dp)
-            .widthIn(min = 40.dp, max = 64.dp)
-            .clickable(role = Role.Button, onClickLabel = description, onClick = appActionWithFeedback(onClick))
-            .padding(horizontal = 4.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        AppText(
-            text = text,
-            color = Color.White,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis,
-            tapToCopyEnabled = false,
-        )
-    }
+            .clip(RoundedCornerShape(50))
+            .background(Color.Black.copy(alpha = 0.55f))
+            .padding(horizontal = 10.dp, vertical = 3.dp)
+            .testTag("player_time_viewport"),
+    )
+}
+
+/** 标题前缀「合集 · 第 N 集」；当前视频不在合集列表里时只显示「合集」，没有合集返回 null。 */
+internal fun resolvePortraitCollectionPrefix(
+    season: com.android.purebilibili.data.model.response.UgcSeason?,
+    bvid: String,
+): String? {
+    val episodes = season?.sections.orEmpty().flatMap { it.episodes }
+    if (episodes.isEmpty()) return null
+    val index = if (bvid.isBlank()) -1 else episodes.indexOfFirst { it.bvid == bvid }
+    return if (index >= 0) "合集 · 第${index + 1}集" else "合集"
 }

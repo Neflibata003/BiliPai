@@ -50,6 +50,7 @@ internal fun PortraitVideoCoverLayer(
     videoHeight: Int,
     showBuffering: Boolean,
     modifier: Modifier = Modifier,
+    extraOffsetYPx: Float = 0f,
 ) {
     Box(modifier = modifier.background(Color.Black)) {
         PortraitVideoViewportContainer(
@@ -58,6 +59,7 @@ internal fun PortraitVideoCoverLayer(
             aspectRatio = aspectRatio,
             videoWidth = videoWidth,
             videoHeight = videoHeight,
+            extraOffsetYPx = extraOffsetYPx,
             modifier = Modifier.fillMaxSize(),
         ) {
             BoxWithConstraints(Modifier.fillMaxSize().clipToBounds(), contentAlignment = Alignment.Center) {

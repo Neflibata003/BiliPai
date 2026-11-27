@@ -80,6 +80,9 @@ internal val fullscreenBottomControlOptions = mapOf(
 )
 
 internal enum class PortraitMoreMenuEntry(override val id: String, override val title: String) : PlayerMenuEntry {
+    PLAY_PAUSE("play_pause", "播放 / 暂停"),
+    SPEED("speed", "播放倍速"),
+    QUALITY("quality", "画质"),
     CLEAN_SCREEN("clean_screen", "清屏播放"),
     NOT_INTERESTED("not_interested", "不感兴趣"),
     DETAILS("details", "视频详情"),

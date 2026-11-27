@@ -234,6 +234,8 @@ fun BottomControlBar(
     showFullscreenSpeedAction: Boolean = true,
     showFullscreenQualityAction: Boolean = true,
     onEnterLandscape: (() -> Unit)? = null,
+    // 竖屏全屏底栏的「详情页」入口；null 时不显示。
+    onOpenDetails: (() -> Unit)? = null,
 ) {
     val glass = com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled
     // 玻璃时间和文字胶囊对齐圆形按钮；MD3、Miuix 保留原生 30dp 控件高度。
@@ -296,11 +298,12 @@ fun BottomControlBar(
                     .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
                     .padding(start = 4.dp, end = 4.dp, bottom = 2.dp),
             ) {
-                // 时间贴在进度条两端，省掉原先 40dp 的空白触摸带，底部不再显得空。
-                PortraitProgressRow(
-                    positionProvider = displayPosition,
-                    durationProvider = { progressProvider().duration },
-                    modifier = Modifier.fillMaxWidth().height(28.dp).padding(horizontal = 12.dp),
+                // 极简细进度条：全宽 2dp 轨道，拖动时加粗并在上方显示时间。
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(20.dp)
+                        .padding(horizontal = 12.dp),
                 ) {
                     PlayerControlProgressBar(
                         progressProvider = progressProvider,
@@ -308,10 +311,10 @@ fun BottomControlBar(
                         isSeekScrubbing = isSeekScrubbing,
                         layoutPolicy = progressLayout.copy(
                             trackHeightDp = if (isSeekScrubbing) 5f else 2f,
-                            thumbIdleSizeDp = 0,
-                            thumbDraggingSizeDp = 12,
+                            thumbIdleSizeDp = 8,
+                            thumbDraggingSizeDp = 14,
                         ),
-                        seekAreaHeight = 28.dp,
+                        seekAreaHeight = 20.dp,
                         horizontalSeekOnly = true,
                         onSeek = onSeek,
                         onSeekStart = onSeekStart,
@@ -331,25 +334,27 @@ fun BottomControlBar(
                             .testTag("player_progress")
                             .wrapContentHeight(androidx.compose.ui.Alignment.Bottom, unbounded = isSeekScrubbing),
                     )
+                    if (isSeekScrubbing) {
+                        PortraitScrubTimeLabel(
+                            positionProvider = displayPosition,
+                            durationProvider = { progressProvider().duration },
+                            modifier = Modifier
+                                .align(androidx.compose.ui.Alignment.TopCenter)
+                                .offset(y = (-28).dp),
+                        )
+                    }
                 }
-                PortraitPlaybackControls(
-                    isPlaying = isPlaying,
-                    onPlayPause = onPlayPauseClick,
-                    speed = currentSpeed,
-                    quality = currentQualityLabel,
-                    onSpeedClick = onSpeedClick,
-                    onQualityClick = onQualityClick,
-                    speedModifier = anchor(PlayerControlAnchor.SPEED, "player_speed_action"),
-                    qualityModifier = anchor(PlayerControlAnchor.QUALITY, "player_quality_action"),
+                PortraitBottomActions(
                     danmakuEnabled = danmakuEnabled,
                     onDanmakuToggle = onDanmakuToggle,
                     onSendDanmakuClick = onSendDanmakuClick,
-                    subtitleControlState = subtitleControlState,
-                    onSubtitleClick = { localMenu = PlayerControlAnchor.SUBTITLE },
-                    subtitleModifier = anchor(PlayerControlAnchor.SUBTITLE, "player_subtitle_action"),
+                    onOpenDetails = onOpenDetails,
                     onExitFullscreen = onToggleFullscreen,
                     onEnterLandscape = onEnterLandscape,
-                    modifier = Modifier.fillMaxWidth().testTag("player_control_row"),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, end = 4.dp)
+                        .testTag("player_control_row"),
                 )
             }
         }

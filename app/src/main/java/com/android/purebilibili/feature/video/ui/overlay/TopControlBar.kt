@@ -54,6 +54,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -653,8 +654,9 @@ internal fun PortraitEngagementRail(
             }
             if (onComment != null) {
                 PortraitRailAction(
-                    icon = if (whiteFilledIcons) Icons.Filled.ChatBubble else Icons.Outlined.Forum,
+                    icon = if (whiteFilledIcons) ImageVector.vectorResource(R.drawable.ic_portrait_comment_dots_24) else Icons.Outlined.Forum,
                     label = "评论", onClick = onComment,
+                    whiteFilledIcon = whiteFilledIcons,
                     count = commentCount,
                     reserveCountSpace = true,
                 )
@@ -676,8 +678,9 @@ internal fun PortraitEngagementRail(
                 reserveCountSpace = true,
             )
             PortraitRailAction(
-                icon = if (whiteFilledIcons) ImageVector.vectorResource(R.drawable.ms_share_fill_24) else Icons.Outlined.Share,
+                icon = if (whiteFilledIcons) ImageVector.vectorResource(R.drawable.ic_portrait_share_forward_24) else Icons.Outlined.Share,
                 label = "分享", onClick = onShare,
+                whiteFilledIcon = whiteFilledIcons,
                 count = shareCount, reserveCountSpace = true,
                 modifier = shareMenuSource?.let { Modifier.appGlassMenuSource(it, onOpen = onShare) } ?: Modifier,
             )
@@ -706,7 +709,7 @@ private fun PortraitRailAction(
     Column(
         modifier = modifier
             .width(64.dp)
-            .heightIn(min = if (reserveCountSpace) 68.dp else 48.dp)
+            .heightIn(min = if (reserveCountSpace) 72.dp else 48.dp)
             .semantics(mergeDescendants = true) {
                 contentDescription = label
                 selected = active
@@ -724,39 +727,46 @@ private fun PortraitRailAction(
         verticalArrangement = Arrangement.Center,
     ) {
         Box(
-            modifier = Modifier.size(44.dp),
+            modifier = Modifier.size(48.dp),
             contentAlignment = Alignment.Center,
         ) {
             if (progress > 0f) {
-                Canvas(Modifier.size(32.dp)) {
+                Canvas(Modifier.size(40.dp)) {
                     drawArc(accent, -90f, -360f * progress, useCenter = false, style = Stroke(2.dp.toPx()))
                 }
             }
             AppIcon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (active && !whiteFilledIcon) accent else Color.White,
-                modifier = Modifier.size(28.dp),
+                // 已点赞 / 已投币 / 已收藏时图标染成主题色（与官方竖屏一致）。
+                tint = if (active) accent else Color.White,
+                modifier = Modifier.size(32.dp),
             )
-            if (active && whiteFilledIcon) {
-                Canvas(
-                    Modifier.align(Alignment.TopEnd).padding(top = 5.dp, end = 4.dp).size(5.dp),
-                ) {
-                    drawCircle(accent)
-                }
-            }
         }
-        if (count != null) {
+        if (count != null && (count > 0L || !whiteFilledIcon)) {
             AppText(
                 text = formatPlayerActionCount(count),
                 color = Color.White,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                lineHeight = 17.sp,
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis,
                 tapToCopyEnabled = false,
                 modifier = Modifier.widthIn(max = 60.dp),
+            )
+        } else if (whiteFilledIcon && reserveCountSpace) {
+            // 计数未知或为 0 时显示动作名称（点赞 / 评论 / 投币 / 收藏 / 分享）。
+            AppText(
+                text = label,
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                lineHeight = 17.sp,
+                maxLines = 1,
+                softWrap = false,
+                tapToCopyEnabled = false,
             )
         } else if (reserveCountSpace) {
             Spacer(Modifier.height(16.dp))

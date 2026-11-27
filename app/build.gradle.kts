@@ -335,6 +335,10 @@ android {
 // AGP 中间产物改用 BiliPai-<version> 基名（避免 app-release.apk）；
 // 交付物再由 export 写成最终 `BiliPai-<version>[.dev].apk`。
 val biliApkVersionName: String = android.defaultConfig.versionName ?: "0"
+// Mod 的 versionCode = 上游 versionCode × 10000 + CI 运行序号：包名不变、每次构建严格递增，可直接覆盖安装。
+val biliBaseVersionCode: Int = android.defaultConfig.versionCode ?: 0
+val biliModBuildNumber: Int = providers.gradleProperty("bili.mod.buildNumber").orNull
+    ?.trim()?.toIntOrNull()?.coerceIn(0, 9999) ?: 0
 base {
     archivesName.set("BiliPai-$biliApkVersionName")
 }
@@ -353,6 +357,9 @@ androidComponents {
             // （archivesName 已含完整 versionName）。AGP 9 VariantOutput.outputFileName。
             variant.outputs.forEach { output ->
                 output.outputFileName.set(deliveryFileName)
+                if (variantName == "mod") {
+                    output.versionCode.set(biliBaseVersionCode * 10000 + biliModBuildNumber)
+                }
             }
             val exportTask = tasks.register<ExportBiliPaiApkTask>(
                 "export${capitalizedVariantName}Apk"

@@ -118,6 +118,8 @@ data class VideoPlayerOverlayState(
     val showDislikeAction: Boolean = true,
     val coverUrl: String = "",
     val videoSharePlayCountText: String = "",
+    // 竖屏信息区 UP 主名称下方的粉丝数（如「8.9万粉丝」）；未知时为空。
+    val videoOwnerFansText: String = "",
     val sleepTimerMinutes: Int? = null,
     val abLoopState: com.android.purebilibili.feature.video.playback.policy.VideoAbLoopState =
         com.android.purebilibili.feature.video.playback.policy.VideoAbLoopState(),

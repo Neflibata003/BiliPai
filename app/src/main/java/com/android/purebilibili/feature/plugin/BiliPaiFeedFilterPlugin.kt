@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -149,12 +150,19 @@ class BiliPaiFeedFilterPlugin : BuiltinPlugin, FeedPlugin<VideoItem> {
         }
         if (!loaded) return
 
+        val pluginInfos by PluginManager.pluginsFlow.collectAsState()
+        val pluginEnabled = pluginInfos.firstOrNull { it.plugin.id == id }?.enabled == true
+
         fun persist(next: BiliPaiFeedFilterConfig) {
             cfg = next
             config = next
             rebuildRegexes()
             scope.launch {
                 PluginStore.setConfigJson(context, id, Json.encodeToString(BiliPaiFeedFilterConfig.serializer(), next))
+                // 插件默认关闭：用户在这里设置了任一过滤规则即视为要启用，否则规则在首页与竖屏流里都不会生效。
+                if (!PluginManager.isEnabled(id) && next.hasActiveVideoRules()) {
+                    PluginManager.setEnabled(id, true)
+                }
             }
         }
 
@@ -167,6 +175,17 @@ class BiliPaiFeedFilterPlugin : BuiltinPlugin, FeedPlugin<VideoItem> {
                 AppText("手动拉黑的用户在首页、搜索、相关推荐、动态与评论中共用，不受本插件开关和视频白名单影响。")
             }
             FilterSection("过滤规则") {
+                AppSwitchPreference(
+                    icon = Icons.Outlined.FilterList,
+                    title = "启用过滤规则",
+                    subtitle = if (pluginEnabled) {
+                        "时长、播放量、点赞率与关键词规则已在首页、竖屏流与刷视频中生效"
+                    } else {
+                        "未启用：下方规则不会生效"
+                    },
+                    checked = pluginEnabled,
+                    onCheckedChange = { enabled -> scope.launch { PluginManager.setEnabled(id, enabled) } },
+                )
                 NumericCustomSelect(
                     title = "视频时长过滤",
                     subtitle = "隐藏时长小于该值的视频(秒)",
@@ -445,6 +464,11 @@ internal fun shouldShowFeedItem(
     rcmdRegExp: Regex?,
     zoneRegExp: Regex?
 ): Boolean = feedItemFilterReason(config, item, feedKind, rcmdRegExp, zoneRegExp) == null
+
+/** 是否设置了任一会隐藏视频的规则（用于在设置页修改规则时自动启用插件）。 */
+private fun BiliPaiFeedFilterConfig.hasActiveVideoRules(): Boolean =
+    minDurationForRcmd > 0 || minPlayForRcmd > 0 || minLikeRatioForRecommend > 0 ||
+        banWordForZone.isNotBlank() || banWordForRecommend.isNotBlank()
 
 private fun feedItemFilterReason(
     config: BiliPaiFeedFilterConfig,

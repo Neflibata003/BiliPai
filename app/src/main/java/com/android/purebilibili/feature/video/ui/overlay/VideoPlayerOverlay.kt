@@ -1833,11 +1833,9 @@ private fun VideoPlayerOverlayContent(
                             PortraitPlayerMetadata(
                                 bvid = bvid,
                                 title = chromeTitle,
-                                // 在看人数显示在顶栏返回键旁，这里只保留播放量。
-                                statsText = resolvePortraitStatsText(
-                                    playCountText = state.videoSharePlayCountText,
-                                    onlineCountText = "",
-                                ),
+                                // 在看人数在顶栏返回键旁；播放量跟在标题右侧，粉丝数在 UP 主名称下方。
+                                playCountText = resolvePortraitPlayCountLabel(state.videoSharePlayCountText),
+                                authorSubtitle = state.videoOwnerFansText.takeIf { it.isNotBlank() },
                                 authorName = videoOwnerName,
                                 authorFace = state.videoOwnerFace,
                                 isFollowing = state.isFollowed,
@@ -1845,9 +1843,9 @@ private fun VideoPlayerOverlayContent(
                                 onFollowClick = actions.onToggleFollow,
                                 episodeLabel = if (pages.size > 1) "分 P ${currentPageIndex + 1}/${pages.size}" else null,
                                 onEpisodeClick = openEpisodeSelection,
-                                collectionLabel = ugcSeason
-                                    ?.takeIf { season -> season.sections.any { it.episodes.isNotEmpty() } }
-                                    ?.let { season -> if (season.title.isBlank()) "合集" else "合集：${season.title}" },
+                                collectionLabel = remember(ugcSeason, bvid) {
+                                    resolvePortraitCollectionPrefix(ugcSeason, bvid)
+                                },
                                 onCollectionClick = {
                                     onDismissEndDrawer()
                                     if (landscapeCommentPanelVisible) onLandscapeCommentClick?.invoke()
@@ -1856,7 +1854,6 @@ private fun VideoPlayerOverlayContent(
                                     showEpisodeMenu = true
                                 },
                                 onAuthorClick = actions.onOpenAuthorPreview,
-                                onOpenDetails = actions.onOpenVideoDetails,
                                 modifier = Modifier
                                     .windowInsetsPadding(playerControlHorizontalInsets(true, true))
                                     .padding(
@@ -1916,6 +1913,7 @@ private fun VideoPlayerOverlayContent(
                             // 竖屏流里的横向视频直接提供「横屏全屏」；竖向视频与不支持的宿主保留退出按钮。
                             onEnterLandscape = actions.onEnterLandscapeFullscreen
                                 ?.takeIf { !state.isVerticalVideo },
+                            onOpenDetails = actions.onOpenVideoDetails?.takeIf { portraitFullscreenChrome },
                             subtitleControlState = subtitleControlState,
                             subtitleControlCallbacks = subtitleControlCallbacks,
                             aiAudioInfo = aiAudioInfo,
@@ -2199,7 +2197,9 @@ private fun VideoPlayerOverlayContent(
             !state.startupLoadingActive && !player.isPlaying && hasRenderedFirstFrame &&
             (showRebufferingIndicator || centerLoadingUiState != null)
 
-        val showCenterPlaybackControl = !hideCenterPlayback && !portraitFullscreenChrome && showPlayerChrome &&
+        // 竖屏底栏不再放播放键：暂停时在画面中央显示播放按钮，播放中不遮挡画面。
+        val showCenterPlaybackControl = !hideCenterPlayback &&
+            (!portraitFullscreenChrome || !effectiveIsPlaying) && showPlayerChrome &&
             (pluginPlaybackStatus.first || player.playbackState == Player.STATE_READY ||
                 player.playbackState == Player.STATE_BUFFERING || player.playbackState == Player.STATE_ENDED) &&
             !isSeekScrubbing && !endDrawerVisible && !landscapeCommentPanelVisible && !showInsightDetails
@@ -2316,7 +2316,7 @@ private fun VideoPlayerOverlayContent(
 
         // --- 6. 清晰度菜单 ---
         if (showQualityMenu) {
-            val anchor = PlayerControlAnchor.QUALITY.takeUnless { qualityInMore }
+            val anchor = PlayerControlAnchor.QUALITY.takeUnless { qualityInMore || portraitFullscreenChrome }
             val source = anchor?.let { actionSources[it] }
             CompositionLocalProvider(com.android.purebilibili.core.ui.components.LocalAppGlassMenuSource provides source) {
                 QualitySelectionMenu(
@@ -2341,7 +2341,7 @@ private fun VideoPlayerOverlayContent(
 
         // --- 7.  [新增] 倍速选择菜单 ---
         if (showSpeedMenu) {
-            val anchor = PlayerControlAnchor.SPEED.takeUnless { speedInMore }
+            val anchor = PlayerControlAnchor.SPEED.takeUnless { speedInMore || portraitFullscreenChrome }
             val source = anchor?.let { actionSources[it] }
             CompositionLocalProvider(com.android.purebilibili.core.ui.components.LocalAppGlassMenuSource provides source) {
                 SpeedSelectionMenuDialog(
@@ -2502,6 +2502,20 @@ private fun VideoPlayerOverlayContent(
                 }
 
                 if (portraitFullscreenChrome) {
+                    // 竖屏底栏只保留发弹幕 / 详情页 / 全屏，其余播控在这里。
+                    add(
+                        PortraitMoreMenuEntry.PLAY_PAUSE,
+                        title = if (effectiveIsPlaying) "暂停" else "播放",
+                        action = { togglePlayPause() },
+                    )
+                    add(PortraitMoreMenuEntry.SPEED, currentValue = portraitSpeedLabel(currentSpeed), action = openSpeedMenu)
+                    if (currentQualityLabel.isNotBlank()) {
+                        add(
+                            PortraitMoreMenuEntry.QUALITY,
+                            currentValue = compactPortraitQualityLabel(currentQualityLabel),
+                            action = openQualityMenu,
+                        )
+                    }
                     actions.onEnterCleanScreen?.let { add(PortraitMoreMenuEntry.CLEAN_SCREEN, action = it) }
                     actions.onNotInterested?.let { add(PortraitMoreMenuEntry.NOT_INTERESTED, action = it) }
                     actions.onOpenVideoDetails?.let { add(PortraitMoreMenuEntry.DETAILS, action = it) }
