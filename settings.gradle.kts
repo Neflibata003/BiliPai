@@ -71,15 +71,25 @@ dependencyResolutionManagement {
             .orElse(providers.environmentVariable("GITHUB_ACTOR"))
         val gprKey = providers.gradleProperty("gpr.key")
             .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+        // Miuix 的 GitHub Packages 只保留最近 10 个 SNAPSHOT，固定版本被清理后无法再下载。
+        // 此时先把固定提交的 Miuix 发布到 mavenLocal（见 .github/workflows/BuildMod.yml），
+        // 再用 -Pbili.miuix.mavenLocal=true 改从 mavenLocal 解析；坐标与版本保持不变。
+        val miuixFromMavenLocal = providers.gradleProperty("bili.miuix.mavenLocal")
+            .map(String::toBoolean)
+            .getOrElse(false)
         exclusiveContent {
             forRepository {
-                maven {
-                    name = "GitHubPackagesMiuix"
-                    url = uri("https://maven.pkg.github.com/compose-miuix-ui/miuix")
-                    if (gprUser.isPresent && gprKey.isPresent) {
-                        credentials {
-                            username = gprUser.get()
-                            password = gprKey.get()
+                if (miuixFromMavenLocal) {
+                    mavenLocal()
+                } else {
+                    maven {
+                        name = "GitHubPackagesMiuix"
+                        url = uri("https://maven.pkg.github.com/compose-miuix-ui/miuix")
+                        if (gprUser.isPresent && gprKey.isPresent) {
+                            credentials {
+                                username = gprUser.get()
+                                password = gprKey.get()
+                            }
                         }
                     }
                 }
