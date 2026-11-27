@@ -885,6 +885,8 @@ fun PureBiliBiliTheme(
     liquidGlassEnabled: Boolean = true,
     themeTransitionEnabled: Boolean = true,
     syncLauncherIcon: Boolean = false,
+    // 「哔哩哔哩手机版」配色：B 站粉主色、浅灰页面底、白色卡片与 B 站文字灰阶（日间 / 夜间各一套）。
+    biliMobilePalette: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -1042,12 +1044,20 @@ fun PureBiliBiliTheme(
             colorContrast, seedPaletteStyle, md3ColorSource, customPrimaryColor, liquidGlassEnabled, uiStyle,
         )
     }
+    val biliLightMaterialScheme = remember(resolvedLightMaterialScheme, biliMobilePalette) {
+        if (biliMobilePalette) applyBiliMobilePalette(resolvedLightMaterialScheme, darkTheme = false, amoledDarkTheme = false)
+        else resolvedLightMaterialScheme
+    }
+    val biliDarkMaterialScheme = remember(resolvedDarkMaterialScheme, biliMobilePalette, amoledDarkTheme) {
+        if (biliMobilePalette) applyBiliMobilePalette(resolvedDarkMaterialScheme, darkTheme = true, amoledDarkTheme = amoledDarkTheme)
+        else resolvedDarkMaterialScheme
+    }
     val lightEndpointPalette = remember(
-        resolvedLightMaterialScheme, uiStyle, md3ColorSource, amoledDarkTheme,
+        biliLightMaterialScheme, uiStyle, md3ColorSource, amoledDarkTheme,
         wallpaperPaletteOverrides, customPrimaryColor, effectiveThemeRoleOverrides, liquidGlassEnabled, seedPaletteStyle,
     ) {
         resolveAppThemeEndpointPalette(
-            base = resolvedLightMaterialScheme,
+            base = biliLightMaterialScheme,
             uiStyle = uiStyle,
             source = md3ColorSource,
             darkTheme = false,
@@ -1060,11 +1070,11 @@ fun PureBiliBiliTheme(
         )
     }
     val darkEndpointPalette = remember(
-        resolvedDarkMaterialScheme, uiStyle, md3ColorSource, amoledDarkTheme,
+        biliDarkMaterialScheme, uiStyle, md3ColorSource, amoledDarkTheme,
         wallpaperPaletteOverrides, customPrimaryColor, effectiveThemeRoleOverrides, liquidGlassEnabled, seedPaletteStyle,
     ) {
         resolveAppThemeEndpointPalette(
-            base = resolvedDarkMaterialScheme,
+            base = biliDarkMaterialScheme,
             uiStyle = uiStyle,
             source = md3ColorSource,
             darkTheme = true,
@@ -1185,4 +1195,77 @@ fun PureBiliBiliTheme(
             )
         }
     }
+}
+
+
+/** 哔哩哔哩手机版主色（品牌粉）。 */
+internal val BiliMobilePink = Color(0xFFFB7299)
+
+/**
+ * 「哔哩哔哩手机版」配色：在已生成的配色上替换主色与中性色，其余角色（tertiary、error 等）保持生成结果。
+ * 日间：#F1F2F3 页面底 + 白色卡片 + #18191C / #61666D / #9499A0 文字灰阶；
+ * 夜间：#17181A 页面底 + #232527 卡片；纯黑夜间（AMOLED）只替换主色，保留纯黑底色。
+ */
+internal fun applyBiliMobilePalette(
+    scheme: ColorScheme,
+    darkTheme: Boolean,
+    amoledDarkTheme: Boolean,
+): ColorScheme {
+    if (!darkTheme) {
+        val white = Color(0xFFFFFFFF)
+        return scheme.copy(
+            primary = BiliMobilePink,
+            onPrimary = white,
+            primaryContainer = Color(0xFFFFE4EC),
+            onPrimaryContainer = Color(0xFF7A1F3D),
+            secondaryContainer = Color(0xFFFFE4EC),
+            onSecondaryContainer = Color(0xFF7A1F3D),
+            inversePrimary = Color(0xFFFFB1C8),
+            surfaceTint = BiliMobilePink,
+            background = Color(0xFFF1F2F3),
+            onBackground = Color(0xFF18191C),
+            surface = white,
+            onSurface = Color(0xFF18191C),
+            surfaceVariant = Color(0xFFF1F2F3),
+            onSurfaceVariant = Color(0xFF61666D),
+            surfaceBright = white,
+            surfaceDim = Color(0xFFE3E5E7),
+            surfaceContainerLowest = white,
+            surfaceContainerLow = white,
+            surfaceContainer = white,
+            surfaceContainerHigh = Color(0xFFF6F7F8),
+            surfaceContainerHighest = Color(0xFFE3E5E7),
+            outline = Color(0xFF9499A0),
+            outlineVariant = Color(0xFFE3E5E7),
+        )
+    }
+    val darkPink = Color(0xFFF0709A)
+    val accented = scheme.copy(
+        primary = darkPink,
+        onPrimary = Color(0xFFFFFFFF),
+        primaryContainer = Color(0xFF5C2338),
+        onPrimaryContainer = Color(0xFFFFD9E3),
+        secondaryContainer = Color(0xFF5C2338),
+        onSecondaryContainer = Color(0xFFFFD9E3),
+        inversePrimary = Color(0xFFB3355F),
+        surfaceTint = darkPink,
+    )
+    if (amoledDarkTheme) return accented
+    return accented.copy(
+        background = Color(0xFF17181A),
+        onBackground = Color(0xFFE3E5E7),
+        surface = Color(0xFF17181A),
+        onSurface = Color(0xFFE3E5E7),
+        surfaceVariant = Color(0xFF232527),
+        onSurfaceVariant = Color(0xFF9499A0),
+        surfaceBright = Color(0xFF2F3134),
+        surfaceDim = Color(0xFF17181A),
+        surfaceContainerLowest = Color(0xFF111213),
+        surfaceContainerLow = Color(0xFF1D1E20),
+        surfaceContainer = Color(0xFF232527),
+        surfaceContainerHigh = Color(0xFF2A2C2F),
+        surfaceContainerHighest = Color(0xFF323438),
+        outline = Color(0xFF61666D),
+        outlineVariant = Color(0xFF2F3134),
+    )
 }

@@ -285,6 +285,7 @@ open class VideoActivity : FragmentActivity() {
                 appListItemStyle = themeSettings.appListItemStyle,
                 liquidGlassEnabled = liquidGlassEnabled,
                 themeTransitionEnabled = uiEntranceAnimationEnabled,
+                biliMobilePalette = themeSettings.biliMobilePalette,
             ) {
                 // 与 MainActivity 对齐：没有这两个 provider 时，overlay 里的每个
                 // unifiedBlur 会各起一个 DataStore 收集器，且完全读不到运行时视觉守卫。

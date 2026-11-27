@@ -844,6 +844,8 @@ data class AppThemeSettings(
     val themeRoleOverrides: ThemeRoleOverrides = ThemeRoleOverrides(),
     val wallpaperPaletteOverrides: WallpaperPaletteOverrides = WallpaperPaletteOverrides(),
     val seedPaletteStyle: SeedPaletteStyle = SeedPaletteStyle.Standard,
+    // 「哔哩哔哩手机版」配色预设（B 站粉 + 浅灰底 + 白卡片）。
+    val biliMobilePalette: Boolean = false,
     val colorStyle: PaletteStyle = PaletteStyle.TonalSpot,
     val colorSpec: ColorSpec.SpecVersion = ColorSpec.SpecVersion.SPEC_2025,
     val colorContrast: Contrast = Contrast.Default,
@@ -1605,6 +1607,7 @@ object SettingsManager {
     private val KEY_THEME_DARK_SECONDARY_TEXT = stringPreferencesKey("theme_dark_secondary_text")
     private val KEY_THEME_DARK_CONTROL_ACCENT = stringPreferencesKey("theme_dark_control_accent")
     private val KEY_SEED_PALETTE_STYLE = stringPreferencesKey("seed_palette_style")
+    private val KEY_BILI_MOBILE_PALETTE = booleanPreferencesKey("bili_mobile_palette")
     private val KEY_THEME_COLOR_STYLE = stringPreferencesKey("theme_color_style")
     private val KEY_THEME_COLOR_SPEC = stringPreferencesKey("theme_color_spec")
     private val KEY_THEME_COLOR_CONTRAST = stringPreferencesKey("theme_color_contrast")
@@ -2665,6 +2668,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 )
             ),
             seedPaletteStyle = SeedPaletteStyle.fromStored(preferences[KEY_SEED_PALETTE_STYLE]),
+            biliMobilePalette = preferences[KEY_BILI_MOBILE_PALETTE] ?: false,
             colorStyle = resolvePaletteStylePreference(preferences[KEY_THEME_COLOR_STYLE]),
             colorSpec = resolveColorSpecPreference(preferences[KEY_THEME_COLOR_SPEC]),
             colorContrast = resolveColorContrastPreference(preferences[KEY_THEME_COLOR_CONTRAST]),
@@ -3000,6 +3004,12 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         } else customHex?.let { normalizeMd3CustomColorHex(it) }
         preferences[KEY_MD3_COLOR_SOURCE] = source.name
         preferences[KEY_DYNAMIC_COLOR] = source != Md3ColorSource.CUSTOM
+        // 选择其他颜色来源或其他主色时退出「哔哩哔哩手机版」配色，避免预设覆盖用户新选的颜色。
+        if (source != Md3ColorSource.CUSTOM ||
+            (selectedHex != null && !selectedHex.equals("#FB7299", ignoreCase = true))
+        ) {
+            preferences[KEY_BILI_MOBILE_PALETTE] = false
+        }
         if (normalizedIndex != null) preferences[KEY_THEME_COLOR_INDEX] = normalizedIndex
         if (selectedHex != null) {
             preferences[KEY_MD3_CUSTOM_COLOR_HEX] = selectedHex
@@ -3095,6 +3105,19 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     fun getSeedPaletteStyle(context: Context): Flow<SeedPaletteStyle> = context.settingsDataStore.data
         .map { preferences -> SeedPaletteStyle.fromStored(preferences[KEY_SEED_PALETTE_STYLE]) }
         .distinctUntilChanged()
+
+    fun getBiliMobilePalette(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { it[KEY_BILI_MOBILE_PALETTE] ?: false }
+
+    /** 开启「哔哩哔哩手机版」配色时同时切到自定义 B 站粉主色，关闭时保留用户当前的颜色来源。 */
+    suspend fun setBiliMobilePalette(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_BILI_MOBILE_PALETTE] = enabled
+            if (enabled) {
+                updateMd3ColorSelection(preferences, Md3ColorSource.CUSTOM, customHex = "#FB7299")
+            }
+        }
+    }
 
     suspend fun setSeedPaletteStyle(context: Context, style: SeedPaletteStyle) {
         context.settingsDataStore.edit { preferences -> preferences[KEY_SEED_PALETTE_STYLE] = style.name }
@@ -8066,10 +8089,10 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         return com.android.purebilibili.feature.audio.player.normalizeSleepTimerFadeDurationSec(raw)
     }
 
-    /** 设置页场景配方与隐藏手感引导卡片总开关（默认开启）。 */
+    /** 设置页场景配方与隐藏手感引导卡片总开关（默认关闭，保持设置页简洁；可在「使用技巧」中开启）。 */
     fun getSettingsRecipeGuidesEnabled(context: Context): Flow<Boolean> =
         context.settingsDataStore.data.map { preferences ->
-            preferences[KEY_SETTINGS_RECIPE_GUIDES_ENABLED] ?: true
+            preferences[KEY_SETTINGS_RECIPE_GUIDES_ENABLED] ?: false
         }
 
     suspend fun setSettingsRecipeGuidesEnabled(context: Context, enabled: Boolean) {

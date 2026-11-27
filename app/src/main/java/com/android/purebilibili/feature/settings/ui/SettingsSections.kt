@@ -263,70 +263,122 @@ internal fun SettingsRootCategoryListSection(
     }.collectAsStateWithLifecycle(initialValue = com.android.purebilibili.feature.settings.DarkThemeStyle.DEFAULT)
     val recipeGuidesEnabled by remember(context) {
         com.android.purebilibili.core.store.SettingsManager.getSettingsRecipeGuidesEnabled(context)
-    }.collectAsStateWithLifecycle(initialValue = true)
+    }.collectAsStateWithLifecycle(initialValue = false)
     val siblingTints = rememberSettingsSiblingIconTints(categories.size + 1)
     val donateVisual = rememberSettingsEntryVisual(SettingsSearchTarget.DONATE)
-    SettingsCardGroup {
-        categories.forEachIndexed { index, category ->
-            val visual = rememberSettingsEntryVisual(category.searchTarget)
-            val defaultSubtitle = stringResource(category.subtitleResource())
-            val dynamicSubtitle = if (!recipeGuidesEnabled) {
-                defaultSubtitle
-            } else {
-                when (category) {
-                    SettingsRootCategory.APPEARANCE_THEME -> resolveAppearanceCategoryHighlightSubtitle(
-                        uiStyleLabel = if (uiStyle == com.android.purebilibili.core.theme.AppUiStyle.MIUIX) "Miuix" else "Material 3",
-                        liquidGlassEnabled = themeConfig.liquidGlassEnabled,
-                        dynamicColorEnabled = dynamicColorEnabled,
-                        amoledDarkEnabled = darkThemeStyle == com.android.purebilibili.feature.settings.DarkThemeStyle.AMOLED,
-                    )
-                    SettingsRootCategory.ANIMATION_HAPTICS -> resolveAnimationCategoryHighlightSubtitle(
-                        hapticEnabled = themeConfig.hapticFeedbackEnabled,
-                        enabledSceneCount = com.android.purebilibili.core.ui.AppHapticScene.entries.count(themeConfig.hapticSettings::isEnabled),
-                        totalSceneCount = com.android.purebilibili.core.ui.AppHapticScene.entries.size,
-                        fallbackSubtitle = defaultSubtitle,
-                    )
-                    SettingsRootCategory.PLAYBACK_QUALITY -> resolvePlaybackCategoryHighlightSubtitle(
-                        sleepFadeEnabled = sleepFadeEnabled,
-                        sleepFadeDurationSec = sleepFadeDurationSec,
-                        loudnessEnabled = loudnessEnabled,
-                        autoPlayEnabled = autoPlayEnabled,
-                        fallbackSubtitle = defaultSubtitle,
-                    )
-                    else -> defaultSubtitle
+    val groups = remember(categories) { resolveSettingsRootCategoryGroups(categories) }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        groups.forEachIndexed { groupIndex, group ->
+            SettingsRootGroupHeader(title = group.title, first = groupIndex == 0)
+            SettingsCardGroup {
+                group.categories.forEachIndexed { index, category ->
+                    val tintIndex = categories.indexOf(category).coerceIn(0, siblingTints.lastIndex)
+                    val visual = rememberSettingsEntryVisual(category.searchTarget)
+                    val defaultSubtitle = stringResource(category.subtitleResource())
+                    val dynamicSubtitle = if (!recipeGuidesEnabled) {
+                        defaultSubtitle
+                    } else {
+                        when (category) {
+                            SettingsRootCategory.APPEARANCE_THEME -> resolveAppearanceCategoryHighlightSubtitle(
+                                uiStyleLabel = if (uiStyle == com.android.purebilibili.core.theme.AppUiStyle.MIUIX) "Miuix" else "Material 3",
+                                liquidGlassEnabled = themeConfig.liquidGlassEnabled,
+                                dynamicColorEnabled = dynamicColorEnabled,
+                                amoledDarkEnabled = darkThemeStyle == com.android.purebilibili.feature.settings.DarkThemeStyle.AMOLED,
+                            )
+                            SettingsRootCategory.ANIMATION_HAPTICS -> resolveAnimationCategoryHighlightSubtitle(
+                                hapticEnabled = themeConfig.hapticFeedbackEnabled,
+                                enabledSceneCount = com.android.purebilibili.core.ui.AppHapticScene.entries.count(themeConfig.hapticSettings::isEnabled),
+                                totalSceneCount = com.android.purebilibili.core.ui.AppHapticScene.entries.size,
+                                fallbackSubtitle = defaultSubtitle,
+                            )
+                            SettingsRootCategory.PLAYBACK_QUALITY -> resolvePlaybackCategoryHighlightSubtitle(
+                                sleepFadeEnabled = sleepFadeEnabled,
+                                sleepFadeDurationSec = sleepFadeDurationSec,
+                                loudnessEnabled = loudnessEnabled,
+                                autoPlayEnabled = autoPlayEnabled,
+                                fallbackSubtitle = defaultSubtitle,
+                            )
+                            else -> defaultSubtitle
+                        }
+                    }
+                    val lastInGroup = index == group.categories.lastIndex && !group.includesDonate
+                    SettingsCategoryContainerOrigin(
+                        category = category,
+                        first = index == 0,
+                        last = lastInGroup,
+                        onClick = { onCategoryClick(category) },
+                    ) { contentModifier, open ->
+                        SettingsRootCategoryRow(
+                            title = stringResource(category.titleResource()),
+                            subtitle = dynamicSubtitle,
+                            iconColorKey = category.title,
+                            icon = visual.icon,
+                            iconPainter = visual.iconResId?.let { painterResource(id = it) },
+                            iconTint = siblingTints[tintIndex],
+                            iconSizeDp = visual.iconSizeDp,
+                            onClick = open,
+                            contentModifier = contentModifier,
+                        )
+                    }
+                    if (!lastInGroup) SettingsAdaptiveDivider()
+                }
+                if (group.includesDonate) {
+                    DonationDialogOrigin {
+                        SettingsRootCategoryRow(
+                            title = settingsDestinationCopy(SettingsSearchTarget.DONATE).title,
+                            subtitle = settingsDestinationCopy(SettingsSearchTarget.DONATE).summary,
+                            icon = donateVisual.icon,
+                            iconPainter = donateVisual.iconResId?.let { painterResource(id = it) },
+                            iconTint = siblingTints.last(),
+                            iconSizeDp = donateVisual.iconSizeDp,
+                            onClick = onDonateClick,
+                        )
+                    }
                 }
             }
-            SettingsCategoryContainerOrigin(
-                category = category,
-                first = index == 0,
-                onClick = { onCategoryClick(category) },
-            ) { contentModifier, open ->
-                SettingsRootCategoryRow(
-                    title = stringResource(category.titleResource()),
-                    subtitle = dynamicSubtitle,
-                    iconColorKey = category.title,
-                    icon = visual.icon,
-                    iconPainter = visual.iconResId?.let { painterResource(id = it) },
-                    iconTint = siblingTints[index],
-                    iconSizeDp = visual.iconSizeDp,
-                    onClick = open,
-                    contentModifier = contentModifier,
-                )
-            }
-            SettingsAdaptiveDivider()
-        }
-        DonationDialogOrigin {
-            SettingsRootCategoryRow(
-                title = settingsDestinationCopy(SettingsSearchTarget.DONATE).title,
-                subtitle = settingsDestinationCopy(SettingsSearchTarget.DONATE).summary,
-                icon = donateVisual.icon,
-                iconPainter = donateVisual.iconResId?.let { painterResource(id = it) },
-                iconTint = siblingTints.last(),
-                iconSizeDp = donateVisual.iconSizeDp,
-                onClick = onDonateClick,
-            )
         }
     }
+}
+
+/** 设置首页分组：常用 / 个性化 / 系统与支持；未知分类归入最后一组，赞助入口放在最后一组末尾。 */
+internal class SettingsRootCategoryGroup(
+    val title: String,
+    val categories: List<SettingsRootCategory>,
+    val includesDonate: Boolean,
+)
+
+internal fun resolveSettingsRootCategoryGroups(
+    categories: List<SettingsRootCategory>,
+): List<SettingsRootCategoryGroup> {
+    val common = listOf(
+        SettingsRootCategory.APPEARANCE_THEME,
+        SettingsRootCategory.PLAYBACK_QUALITY,
+        SettingsRootCategory.HOME_RECOMMENDATION,
+    )
+    val personalize = listOf(
+        SettingsRootCategory.ANIMATION_HAPTICS,
+        SettingsRootCategory.NAVIGATION_INTERACTION,
+        SettingsRootCategory.PLUGINS_EXTENSIONS,
+    )
+    val first = categories.filter { it in common }
+    val second = categories.filter { it in personalize }
+    val rest = categories.filter { it !in common && it !in personalize }
+    return listOf(
+        SettingsRootCategoryGroup("常用", first, includesDonate = false),
+        SettingsRootCategoryGroup("个性化", second, includesDonate = false),
+        SettingsRootCategoryGroup("系统与支持", rest, includesDonate = true),
+    ).filter { it.categories.isNotEmpty() || it.includesDonate }
+}
+
+@Composable
+private fun SettingsRootGroupHeader(title: String, first: Boolean) {
+    AppText(
+        text = title,
+        color = AppContentColors.secondaryText(),
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = if (first) 4.dp else 20.dp, bottom = 8.dp),
+    )
 }
 
 /** 登记条目到详情页的共享边界。 */
@@ -335,13 +387,14 @@ private fun SettingsCategoryContainerOrigin(
     category: SettingsRootCategory,
     first: Boolean,
     onClick: () -> Unit,
+    last: Boolean = false,
     content: @Composable (Modifier, () -> Unit) -> Unit,
 ) {
     SettingsNavigationContainerOrigin(
         target = resolveSettingsCategoryNavKey(category),
         onClick = onClick,
         first = first,
-        last = false,
+        last = last,
         flatGroup = LocalAppUiStyle.current != AppUiStyle.MIUIX,
         content = content,
     )

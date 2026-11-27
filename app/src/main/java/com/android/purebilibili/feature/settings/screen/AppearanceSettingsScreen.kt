@@ -802,6 +802,8 @@ fun AppearanceSettingsContent(
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceGroup {
                     Column {
+                        BiliMobilePalettePreference()
+                        AppPreferenceDivider()
                         SettingsSingleChoicePreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.THEME_MODE),
                             title = "${themeModeTitle}：$selectedThemeModeLabel",
@@ -3133,4 +3135,27 @@ internal fun resolveDisplayedAppDpiPercent(
     } else {
         DEFAULT_APP_DPI_OVERRIDE_PERCENT
     }
+}
+
+
+/** 一键套用「哔哩哔哩手机版」配色：B 站粉主色、浅灰页面底、白色卡片与 B 站文字灰阶（日间 / 夜间各一套）。 */
+@Composable
+private fun BiliMobilePalettePreference() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val enabled by remember(context) { SettingsManager.getBiliMobilePalette(context) }
+        .collectAsStateWithLifecycle(initialValue = false)
+    com.android.purebilibili.core.ui.components.AppSwitchPreference(
+        icon = rememberSettingsSemanticIcon(SettingsIconRole.CUSTOM_MD3_COLOR),
+        title = "哔哩哔哩手机版配色",
+        subtitle = if (enabled) {
+            "已套用：B站粉 · 浅灰页面 · 白色卡片（日间 / 夜间）"
+        } else {
+            "一键套用 B站 App 的粉色主色、浅灰页面与白色卡片"
+        },
+        checked = enabled,
+        onCheckedChange = { checked ->
+            scope.launch { SettingsManager.setBiliMobilePalette(context, checked) }
+        },
+    )
 }

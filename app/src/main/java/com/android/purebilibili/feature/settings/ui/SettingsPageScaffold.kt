@@ -288,8 +288,9 @@ internal fun SettingsPageScaffold(
                         },
                         actions = actions,
                         colors = TopAppBarDefaults.topAppBarColors(
-                            // 原生 Miuix 同样遵循顶部特效开关；不透明底色会遮住已绘制的渐进模糊。
-                            containerColor = if (!topBarBlurActive && !usesTransparentChrome) {
+                            // 设置页标题栏只在真实毛玻璃（haze）可用时透明；渐进模糊 / 渐隐等
+                            // 仅半透明的效果会让滚动内容与标题重叠，改用页面底色保持清爽。
+                            containerColor = if (!hazeReady && !usesTransparentChrome) {
                                 pageContainerColor
                             } else {
                                 Color.Transparent

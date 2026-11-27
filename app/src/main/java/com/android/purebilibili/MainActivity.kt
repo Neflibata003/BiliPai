@@ -1621,6 +1621,7 @@ class MainActivity : AppCompatActivity() {
                 appIconStyle = appThemeSettings.appIconStyle,
                 appLineIconColor = appThemeSettings.appLineIconColor,
                 appListItemStyle = appThemeSettings.appListItemStyle,
+                biliMobilePalette = appThemeSettings.biliMobilePalette,
             ) {
                 ProvideAppThemeConfig(config = appThemeConfig) {
                 ProvideRuntimeVisualGuard(

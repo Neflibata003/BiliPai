@@ -85,7 +85,7 @@ internal fun AppearanceSceneRecipesSection(
     val context = LocalContext.current
     val guidesEnabled by remember(context) {
         SettingsManager.getSettingsRecipeGuidesEnabled(context)
-    }.collectAsStateWithLifecycle(initialValue = true)
+    }.collectAsStateWithLifecycle(initialValue = false)
     if (!guidesEnabled) return
 
     val scope = rememberCoroutineScope()
@@ -209,7 +209,7 @@ internal fun PlaybackSceneRecipesSection(
     val context = LocalContext.current
     val guidesEnabled by remember(context) {
         SettingsManager.getSettingsRecipeGuidesEnabled(context)
-    }.collectAsStateWithLifecycle(initialValue = true)
+    }.collectAsStateWithLifecycle(initialValue = false)
     if (!guidesEnabled) return
 
     val scope = rememberCoroutineScope()
@@ -472,7 +472,7 @@ internal fun SettingsHiddenGemsSpotlightCard(
     val context = LocalContext.current
     val guidesEnabled by remember(context) {
         SettingsManager.getSettingsRecipeGuidesEnabled(context)
-    }.collectAsStateWithLifecycle(initialValue = true)
+    }.collectAsStateWithLifecycle(initialValue = false)
     if (!guidesEnabled) return
 
     val gems = SETTINGS_HIDDEN_GEMS

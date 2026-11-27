@@ -70,7 +70,7 @@ internal fun TipsSettingsScreen(
     val scope = rememberCoroutineScope()
     val recipeGuidesEnabled by remember(context) {
         com.android.purebilibili.core.store.SettingsManager.getSettingsRecipeGuidesEnabled(context)
-    }.collectAsStateWithLifecycle(initialValue = true)
+    }.collectAsStateWithLifecycle(initialValue = false)
     val rememberedSecondaryTextColor = AppContentColors.secondaryText()
     val basicTips = remember(rememberedSecondaryTextColor, glyphs, onNavigate) {
         listOf(
