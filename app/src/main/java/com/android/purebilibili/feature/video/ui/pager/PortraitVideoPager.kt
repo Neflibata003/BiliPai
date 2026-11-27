@@ -3997,6 +3997,11 @@ private fun VideoPageItem(
                 videoTitle = title,
                 videoDuration = progressDuration,
                 coverUrl = cover,
+                // 竖屏信息区与分享卡片共用播放量；Story 条目缺统计时回落到已加载的详情。
+                videoSharePlayCountText = resolvePortraitPlayCountText(
+                    detailViews = portraitDetailInfo?.takeIf { it.bvid == bvid }?.stat?.view,
+                    seedViews = stat.view,
+                ),
                 currentQuality = selectedQualityId,
                 currentVideoUrl = videoUrl,
                 currentAudioUrl = audioUrl,

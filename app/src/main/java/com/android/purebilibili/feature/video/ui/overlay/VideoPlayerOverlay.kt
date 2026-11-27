@@ -1833,6 +1833,10 @@ private fun VideoPlayerOverlayContent(
                             PortraitPlayerMetadata(
                                 bvid = bvid,
                                 title = chromeTitle,
+                                statsText = resolvePortraitStatsText(
+                                    playCountText = state.videoSharePlayCountText,
+                                    onlineCountText = displayedOnlineCount,
+                                ),
                                 authorName = videoOwnerName,
                                 authorFace = state.videoOwnerFace,
                                 isFollowing = state.isFollowed,

@@ -31,7 +31,8 @@ class StoryViewModel(application: Application) : AndroidViewModel(application) {
                 items = items,
                 minVerticalRatio = com.android.purebilibili.core.store.SettingsManager.getCurrentVerticalVideoRatio()
             )
-        }
+        },
+        filterContentItems = { items -> filterStoryItemsByContentRules(items) },
     )
 
     val uiState = session.state

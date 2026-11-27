@@ -69,7 +69,9 @@ internal class StoryFeedSession(
     private val loadHome: suspend (Int) -> Result<List<StoryItem>>,
     private val store: StoryContinuationStore,
     private val accountKey: () -> String,
-    private val filterVerticalItems: suspend (List<StoryItem>) -> List<StoryItem> = { it }
+    private val filterVerticalItems: suspend (List<StoryItem>) -> List<StoryItem> = { it },
+    /** 与首页共用的屏蔽规则（屏蔽词、拉黑 UP、时长 / 播放量 / 点赞率等）；在竖屏校验前执行以减少请求。 */
+    private val filterContentItems: suspend (List<StoryItem>) -> List<StoryItem> = { it },
 ) {
     private val mutableState = MutableStateFlow(StoryUiState(isLoading = true))
     val state = mutableState.asStateFlow()
@@ -192,8 +194,9 @@ internal class StoryFeedSession(
                 }
                 if (source == StoryFeedSource.STORY) nextDisplayId += 1 else nextHomePage += 1
                 val rawItems = result.getOrThrow()
-                val playable = rawItems
-                    .filter { storyItemToRelatedVideo(it) != null && !wasWatched(it) }
+                val playable = filterContentItems(
+                    rawItems.filter { storyItemToRelatedVideo(it) != null && !wasWatched(it) }
+                )
                 val incoming = if (requestOnlyVertical) {
                     filterVerticalItems(playable)
                 } else {

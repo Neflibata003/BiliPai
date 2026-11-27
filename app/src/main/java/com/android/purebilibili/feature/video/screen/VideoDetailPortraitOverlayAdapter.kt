@@ -157,9 +157,11 @@ internal fun VideoDetailPortraitOverlayAdapter(
                     aid = info.aid,
                     bvid = info.bvid,
                 ).getOrNull().orEmpty()
-                val storyRecommendations = storyItems
-                    .mapNotNull(::storyItemToRelatedVideo)
-                    .filter { it.bvid.isNotBlank() && it.bvid != info.bvid }
+                val storyRecommendations = com.android.purebilibili.feature.story.filterPortraitFeedRecommendations(
+                    storyItems
+                        .mapNotNull(::storyItemToRelatedVideo)
+                        .filter { it.bvid.isNotBlank() && it.bvid != info.bvid }
+                )
                 if (storyRecommendations.isNotEmpty()) {
                     portraitRecommendations = storyRecommendations
                 }

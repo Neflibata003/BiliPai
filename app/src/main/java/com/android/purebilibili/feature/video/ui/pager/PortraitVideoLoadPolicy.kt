@@ -70,6 +70,12 @@ internal fun resolvePortraitPlaybackTargetQuality(
  * Short label for the portrait chrome quality chip.
  * Auto-highest (marker ≥ 127) stays generic because actual track is per-video.
  */
+/** 竖屏页播放量文本：优先使用已加载详情的最新统计，缺失（0）时回落到推荐条目自带的统计。 */
+internal fun resolvePortraitPlayCountText(detailViews: Int?, seedViews: Int): String {
+    val views = detailViews?.takeIf { it > 0 } ?: seedViews.takeIf { it > 0 } ?: return ""
+    return com.android.purebilibili.core.util.FormatUtils.formatStat(views.toLong())
+}
+
 internal fun resolvePortraitQualityLabel(qualityId: Int): String {
     return when {
         qualityId == 129 -> "HDR Vivid"

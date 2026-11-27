@@ -45,6 +45,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
+/** 竖屏信息区的统计行：「12.3万播放 · 1234人正在看」；两项都没有时不显示。 */
+internal fun resolvePortraitStatsText(playCountText: String, onlineCountText: String): String? =
+    listOfNotNull(
+        playCountText.trim().takeIf { it.isNotEmpty() && it != "0" }?.let { "${it}播放" },
+        onlineCountText.trim().takeIf { it.isNotEmpty() },
+    ).joinToString(" · ").ifEmpty { null }
+
 /** 竖屏播放是否保留系统状态栏（时间 / 电量 / 信号）。首帧使用内存缓存，避免状态栏闪烁。 */
 @Composable
 internal fun rememberPortraitPlayerShowStatusBar(): Boolean {
@@ -116,6 +123,7 @@ internal fun PortraitPlayerMetadata(
     modifier: Modifier = Modifier,
     onAuthorClick: (() -> Unit)? = null,
     onOpenDetails: (() -> Unit)? = null,
+    statsText: String? = null,
 ) {
     var expanded by remember(bvid, title) { mutableStateOf(false) }
     var titleOverflows by remember(bvid, title) { mutableStateOf(false) }
@@ -152,6 +160,18 @@ internal fun PortraitPlayerMetadata(
                         onClick = { expanded = !expanded },
                     )
                     .padding(vertical = 4.dp),
+            )
+        }
+        if (!statsText.isNullOrBlank()) {
+            AppText(
+                text = statsText,
+                color = Color.White.copy(alpha = 0.78f),
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                tapToCopyEnabled = false,
+                modifier = Modifier.fillMaxWidth().testTag("portrait_player_stats"),
             )
         }
         listOfNotNull(

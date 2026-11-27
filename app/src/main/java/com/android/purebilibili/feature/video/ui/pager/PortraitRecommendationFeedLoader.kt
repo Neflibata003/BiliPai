@@ -56,6 +56,10 @@ internal suspend fun fetchPortraitRecommendationAppendBatch(
             minVerticalRatio = ratio,
         )
     },
+    /** 与首页共用的屏蔽规则；先于竖屏校验执行，被屏蔽的条目不会再触发尺寸查询。 */
+    filterContent: suspend (List<RelatedVideo>) -> List<RelatedVideo> = { items ->
+        com.android.purebilibili.feature.story.filterPortraitFeedRecommendations(items)
+    },
 ): PortraitRecommendationBatchResult {
     val verifiedRecommendations = mutableListOf<RelatedVideo>()
     var nextStoryDisplayId = request.startingStoryDisplayId
@@ -70,7 +74,7 @@ internal suspend fun fetchPortraitRecommendationAppendBatch(
         nextStoryDisplayId += 1
         storyAttempts += 1
         if (storyPage.isEmpty()) break
-        verifiedRecommendations += filterVertical(storyPage, request.onlyVertical, request.minVerticalRatio)
+        verifiedRecommendations += filterVertical(filterContent(storyPage), request.onlyVertical, request.minVerticalRatio)
     }
 
     var homeAttempts = 0
@@ -79,11 +83,11 @@ internal suspend fun fetchPortraitRecommendationAppendBatch(
         nextHomeFeedCursor += 1
         homeAttempts += 1
         if (homePage.isEmpty()) break
-        verifiedRecommendations += filterVertical(homePage, request.onlyVertical, request.minVerticalRatio)
+        verifiedRecommendations += filterVertical(filterContent(homePage), request.onlyVertical, request.minVerticalRatio)
     }
 
     val relatedFallback = if (verifiedRecommendations.size < request.targetBatchSize) {
-        filterVertical(fetchRelated(request.currentBvid), request.onlyVertical, request.minVerticalRatio)
+        filterVertical(filterContent(fetchRelated(request.currentBvid)), request.onlyVertical, request.minVerticalRatio)
     } else {
         emptyList()
     }
