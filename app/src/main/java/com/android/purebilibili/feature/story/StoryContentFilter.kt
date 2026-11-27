@@ -33,6 +33,7 @@ internal suspend fun filterPortraitFeedRecommendations(items: List<RelatedVideo>
             .filterFeedItemsBeforeContentProjection(candidates, feedKind = FeedKind.HOME_RECOMMEND)
             .mapNotNull { originals[it.aid to it.bvid] }
         val tagKept = filterVideoTagMatches(pluginKept, bvid = { it.bvid }, asVideoItem = { it.toVideoItem() })
+            .let { filterByNotInterestedFeedback(it) }
         val rules = com.android.purebilibili.core.network.NetworkModule.appContext
             ?.let { ContentFilterRules.snapshot(it) }
             ?: ContentFilterRules.current.value
@@ -61,6 +62,25 @@ internal suspend fun filterStoryItemsByContentRules(items: List<StoryItem>): Lis
         val video = videos[index]
         video == null || (video.aid to video.bvid) in kept
     }
+}
+
+/** 首页与竖屏里点过「不感兴趣」的视频、UP 主和关键词，在竖屏流 / 刷视频中同样隐藏。 */
+private suspend fun filterByNotInterestedFeedback(items: List<RelatedVideo>): List<RelatedVideo> {
+    if (items.isEmpty()) return items
+    val context = com.android.purebilibili.core.network.NetworkModule.appContext ?: return items
+    val feedback = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        com.android.purebilibili.core.store.TodayWatchFeedbackStore.getSnapshot(context)
+    }
+    if (feedback.dislikedBvids.isEmpty() && feedback.dislikedCreatorMids.isEmpty() &&
+        feedback.dislikedKeywords.isEmpty()
+    ) return items
+    val originals = items.associateBy { it.aid to it.bvid }
+    return com.android.purebilibili.feature.home.filterHomeVideosByNotInterestedFeedback(
+        videos = items.map { it.toVideoItem() },
+        dislikedBvids = feedback.dislikedBvids,
+        dislikedCreatorMids = feedback.dislikedCreatorMids,
+        dislikedKeywords = feedback.dislikedKeywords,
+    ).mapNotNull { originals[it.aid to it.bvid] }
 }
 
 private fun RelatedVideo.toPortraitFilterCandidate(): VideoItem {

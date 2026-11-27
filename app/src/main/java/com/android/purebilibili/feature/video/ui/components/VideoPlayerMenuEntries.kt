@@ -81,6 +81,7 @@ internal val fullscreenBottomControlOptions = mapOf(
 
 internal enum class PortraitMoreMenuEntry(override val id: String, override val title: String) : PlayerMenuEntry {
     CLEAN_SCREEN("clean_screen", "清屏播放"),
+    NOT_INTERESTED("not_interested", "不感兴趣"),
     DETAILS("details", "视频详情"),
     PLAYER_SETTINGS("player_settings", "播放器设置"),
     DANMAKU_TOGGLE("danmaku_toggle", "弹幕开关"),

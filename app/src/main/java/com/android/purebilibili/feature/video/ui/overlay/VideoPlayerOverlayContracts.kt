@@ -304,4 +304,6 @@ data class VideoPlayerOverlayActions(
     val onOpenAuthorPreview: (() -> Unit)? = null,
     // 竖屏流内直接切到横屏全屏；null 表示宿主不支持（例如独立刷视频页），此时保留「退出全屏」按钮。
     val onEnterLandscapeFullscreen: (() -> Unit)? = null,
+    // 竖屏「更多 → 不感兴趣」：由竖屏流弹出原因选择并处理后续条目；null 时不显示该入口。
+    val onNotInterested: (() -> Unit)? = null,
 )

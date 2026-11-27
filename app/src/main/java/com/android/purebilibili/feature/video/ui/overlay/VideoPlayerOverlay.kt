@@ -2501,6 +2501,7 @@ private fun VideoPlayerOverlayContent(
 
                 if (portraitFullscreenChrome) {
                     actions.onEnterCleanScreen?.let { add(PortraitMoreMenuEntry.CLEAN_SCREEN, action = it) }
+                    actions.onNotInterested?.let { add(PortraitMoreMenuEntry.NOT_INTERESTED, action = it) }
                     actions.onOpenVideoDetails?.let { add(PortraitMoreMenuEntry.DETAILS, action = it) }
                 }
                 add(PortraitMoreMenuEntry.PLAYER_SETTINGS, action = ::openPlayerSettings)

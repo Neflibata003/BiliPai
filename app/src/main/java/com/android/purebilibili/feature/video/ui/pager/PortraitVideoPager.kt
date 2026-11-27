@@ -667,6 +667,18 @@ fun PortraitVideoPager(
         pageItems.addAll(safeIndex, newItems)
         pageSlotIds.addAll(safeIndex, ids)
     }
+    /** 只移除当前页之后的条目，当前页与已看过的页不动，避免 Pager 跳页。 */
+    fun removeUpcomingPortraitPageItems(afterIndex: Int, predicate: (Any) -> Boolean) {
+        for (index in pageItems.lastIndex downTo afterIndex + 1) {
+            if (predicate(pageItems[index])) {
+                pageItems.removeAt(index)
+                pageSlotIds.removeAt(index)
+            }
+        }
+    }
+    var portraitNotInterestedTarget by remember {
+        mutableStateOf<com.android.purebilibili.data.model.response.VideoItem?>(null)
+    }
     var seededInitialRecommendations by remember(
         initialInfo.bvid,
         onlyVerticalRecommendations,
@@ -2166,6 +2178,9 @@ fun PortraitVideoPager(
                 onOpenBilibiliLink = onOpenBilibiliLink,
                 onExitFullscreen = onExitFullscreen,
                 onEnterLandscapeFullscreen = onEnterLandscapeFullscreen,
+                onNotInterested = { pageItem ->
+                    portraitNotInterestedTarget = portraitPageItemAsVideoItem(pageItem)
+                },
                 onProgressUpdate = onProgressUpdate,
                 watchLaterVideos = watchLaterVideos,
                 recommendationVideos = recommendationItems,
@@ -2345,6 +2360,18 @@ fun PortraitVideoPager(
             }
         }
 
+        PortraitNotInterestedHost(
+            target = portraitNotInterestedTarget,
+            onDismiss = { portraitNotInterestedTarget = null },
+            onApplied = { _, action ->
+                val current = pagerState.currentPage
+                removeUpcomingPortraitPageItems(current) { portraitItemMatchesNotInterested(it, action) }
+                if (current < pageItems.lastIndex) {
+                    scope.launch { pagerState.animateScrollToPage(current + 1) }
+                }
+            },
+        )
+
         NextWatchOverlay(
             player = exoPlayer,
             mediaKey = "portrait:$currentPlayingBvid:$currentPlayingCid",
@@ -2431,6 +2458,7 @@ private fun VideoPageItem(
     onOpenBilibiliLink: ((String) -> Unit)?,
     onExitFullscreen: () -> Unit,
     onEnterLandscapeFullscreen: (() -> Unit)?,
+    onNotInterested: (Any) -> Unit,
     onProgressUpdate: (String, Long, Long, String) -> Unit,
     watchLaterVideos: List<RelatedVideo>,
     recommendationVideos: List<RelatedVideo>,
@@ -4307,6 +4335,7 @@ private fun VideoPageItem(
                     onExitSnapshot(bvid, exoPlayer.currentPosition, snapshotCid, cover)
                     onExitFullscreen()
                 },
+                onNotInterested = { onNotInterested(portraitDetailInfo ?: item) },
                 onEnterLandscapeFullscreen = onEnterLandscapeFullscreen?.let { enterLandscape ->
                     {
                         onExitSnapshot(bvid, exoPlayer.currentPosition, snapshotCid, cover)
