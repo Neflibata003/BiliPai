@@ -168,8 +168,9 @@ fun TopControlBar(
     val showCounts = isFullscreen
     fun visibleCount(kind: com.android.purebilibili.core.store.FullscreenActionCount, value: Long?): Long? =
         value.takeIf { showCounts && kind in visibleCounts }
+    // 「全屏顶部按钮」同时作用于横屏与竖屏全屏：此前竖屏直接忽略该设置，导致设备接力等按钮无法隐藏。
     fun showTopItem(item: com.android.purebilibili.core.store.FullscreenTopBarItem): Boolean =
-        !isFullscreen || isPortrait || item in visibleTopBarItems
+        !isFullscreen || item in visibleTopBarItems
     val context = LocalContext.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
@@ -264,11 +265,9 @@ fun TopControlBar(
                             }
                             if (clockVisible) HeaderStatusText(currentTime)
                         }
-                        val showAudioButton = onAudioClick != null && (
-                            simplifiedPortrait ||
-                                (policy.showAudio &&
-                                    showTopItem(com.android.purebilibili.core.store.FullscreenTopBarItem.AUDIO))
-                        )
+                        val showAudioButton = onAudioClick != null &&
+                            (simplifiedPortrait || policy.showAudio) &&
+                            showTopItem(com.android.purebilibili.core.store.FullscreenTopBarItem.AUDIO)
                         if (showAudioButton) {
                             HeaderIcon(
                                 icon = Icons.Outlined.Headphones,

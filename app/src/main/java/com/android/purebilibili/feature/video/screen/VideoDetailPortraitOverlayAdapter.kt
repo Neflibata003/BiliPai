@@ -57,6 +57,7 @@ internal fun VideoDetailPortraitOverlayAdapter(
     useTextureSurfaceForNavigation: Boolean,
     isPlayerSurfaceReady: Boolean = true,
     onExitFullscreen: () -> Unit,
+    onEnterLandscapeFullscreen: (() -> Unit)? = null,
     onHomeClick: () -> Unit,
     onVideoChange: (String) -> Unit,
     onPlaybackIdentityChange: (String, Long, String) -> Unit,
@@ -186,6 +187,7 @@ internal fun VideoDetailPortraitOverlayAdapter(
                 onUserClick = onUserClick,
                 onOpenBilibiliLink = onOpenBilibiliLink,
                 onExitFullscreen = onExitFullscreen,
+                onEnterLandscapeFullscreen = onEnterLandscapeFullscreen,
             )
         }
     }

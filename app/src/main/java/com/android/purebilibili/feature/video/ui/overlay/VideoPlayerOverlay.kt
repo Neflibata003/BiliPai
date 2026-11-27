@@ -1552,6 +1552,8 @@ private fun VideoPlayerOverlayContent(
                 onDismiss = { showPlayerInformation = false },
             )
         }
+        if (portraitFullscreenChrome) PortraitStatusBarScrim(Modifier.align(Alignment.TopCenter))
+
         // --- 1. 顶部渐变遮罩 ---
         AnimatedVisibility(
             visible = isVisible,
@@ -1905,6 +1907,9 @@ private fun VideoPlayerOverlayContent(
                             onEpisodeClick = openEpisodeSelection,
                             hasEpisodeEntry = hasEpisodeEntry,
                             onToggleFullscreen = onToggleFullscreen,
+                            // 竖屏流里的横向视频直接提供「横屏全屏」；竖向视频与不支持的宿主保留退出按钮。
+                            onEnterLandscape = actions.onEnterLandscapeFullscreen
+                                ?.takeIf { !state.isVerticalVideo },
                             subtitleControlState = subtitleControlState,
                             subtitleControlCallbacks = subtitleControlCallbacks,
                             aiAudioInfo = aiAudioInfo,
@@ -2484,6 +2489,7 @@ private fun VideoPlayerOverlayContent(
 
         if (showPortraitMore || showPortraitMoreEditor) {
             val menuConfiguration = rememberPlayerMenuConfiguration(PlayerMenuStore.PORTRAIT)
+            val chromeToggles = rememberPortraitChromeMenuToggles(scope)
             val actionsByEntry = buildMap<PortraitMoreMenuEntry, PlayerMenuAction> {
                 fun add(entry: PortraitMoreMenuEntry, title: String = entry.title, currentValue: String? = null, action: () -> Unit) {
                     put(entry, PlayerMenuAction(title, action, currentValue))
@@ -2549,7 +2555,23 @@ private fun VideoPlayerOverlayContent(
                 if (bvid.isNotBlank()) {
                     add(PortraitMoreMenuEntry.AI_SUMMARY) { showPortraitAiSummarySheet = true }
                 }
-                if (isFullscreen) add(PortraitMoreMenuEntry.LANDSCAPE, action = onToggleFullscreen)
+                if (isFullscreen) {
+                    add(PortraitMoreMenuEntry.LANDSCAPE, action = actions.onEnterLandscapeFullscreen ?: onToggleFullscreen)
+                }
+                if (portraitFullscreenChrome) {
+                    add(
+                        PortraitMoreMenuEntry.STATUS_BAR,
+                        currentValue = chromeToggles.statusBarShown.playerMenuToggleValue(),
+                        action = chromeToggles.toggleStatusBar,
+                    )
+                    chromeToggles.nearbyHandoffOnTopBar?.let { onTopBar ->
+                        add(
+                            PortraitMoreMenuEntry.TOP_BAR_NEARBY_HANDOFF,
+                            currentValue = if (onTopBar) "显示" else "隐藏",
+                            action = chromeToggles.toggleNearbyHandoffOnTopBar,
+                        )
+                    }
+                }
                 if (playerControlVisibility.showCastButton) add(PortraitMoreMenuEntry.CAST, action = onCastClickAction)
                 add(PortraitMoreMenuEntry.PIP, action = onPipClick)
                 if (isFullscreen && showFullscreenLockButton) add(PortraitMoreMenuEntry.LOCK, action = onLockToggle)

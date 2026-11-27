@@ -102,6 +102,8 @@ internal enum class PortraitMoreMenuEntry(override val id: String, override val 
     RELATED("related", "相关推荐"),
     AI_SUMMARY("ai_summary", "AI 总结"),
     LANDSCAPE("landscape", "横屏播放"),
+    STATUS_BAR("status_bar", "显示状态栏"),
+    TOP_BAR_NEARBY_HANDOFF("top_bar_nearby_handoff", "顶栏设备接力按钮"),
     CAST("cast", "投屏"),
     PIP("pip", "画中画"),
     AUDIO_ONLY("audio_only", "听音频"),

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mod 构建：白骨瓷 + 黑曜石字标启动图标，覆盖默认的「蓝雪女仆」入口，便于与官方版区分。 -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_obsidian_porcelain_background" />
+    <foreground android:drawable="@drawable/ic_launcher_obsidian_porcelain_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_obsidian_porcelain_monochrome" />
+</adaptive-icon>

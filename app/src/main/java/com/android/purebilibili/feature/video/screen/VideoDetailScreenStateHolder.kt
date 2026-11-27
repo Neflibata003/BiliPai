@@ -2774,7 +2774,11 @@ internal fun VideoDetailScreenStateHolder(
         infoDimension.width > 0 &&
         infoDimension.height > 0 &&
         !infoDimension.isVertical
+    // 用户在竖屏流里对横向视频点了「横屏全屏」：新稿件信息加载完成前，旧稿件的竖屏尺寸
+    // 不能把方向策略重新导回竖屏。只对该稿件生效，切到其他视频后自动失效。
+    var explicitLandscapeRequestBvid by remember { mutableStateOf<String?>(null) }
     val isVerticalVideo = when {
+        explicitLandscapeRequestBvid != null && explicitLandscapeRequestBvid == currentBvid -> false
         hasLandscapeInfo -> false
         isVerticalFromRoute || isVerticalFromInfo -> true
         else -> isVerticalFromPlayer
@@ -3705,6 +3709,32 @@ internal fun VideoDetailScreenStateHolder(
     }
     val toggleFullscreen = { changeFullscreen(ContinuousPlayerTransitionEvent.Toggle) }
 
+    /**
+     * 竖屏流 → 横屏全屏：先退出竖屏流（播放进度已由 onExitSnapshot 同步给主播放器），再直接请求横屏。
+     * 不走 [toggleFullscreen]：竖屏视频或「自动」全屏方向会把切换重新导回竖屏流，造成来回弹跳。
+     */
+    fun enterLandscapeFullscreenFromPortrait() {
+        explicitLandscapeRequestBvid = currentBvid
+        presentationState.setPortraitFullscreen(false)
+        if (continuousFullscreenTransitionEnabled) {
+            changeFullscreen(ContinuousPlayerTransitionEvent.EnterFullscreen)
+            return
+        }
+        userRequestedFullscreen = true
+        manualPortraitHoldActive = false
+        if (!isOrientationDrivenFullscreen) {
+            // 平板 / 大屏走窗口内全屏，不改变设备方向。
+            latestOnImmersivePlaybackChanged(true)
+            return
+        }
+        if (orientationRequestsAllowed) {
+            activity?.applyPlayerRequestedOrientation(
+                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+                displayContext = displayContext,
+            )
+        }
+    }
+
     // Fullscreen removes the inline scrollable nodes while retaining their states. A scroll
     // mutation from the old attachment must not suppress clicks/scrolls after reattachment.
     // stopScroll cancels the old mutation without changing the saved item/page position.
@@ -3808,19 +3838,23 @@ internal fun VideoDetailScreenStateHolder(
             immersiveVideoPageStatusBar && isScreenActive && !useTabletLayout && !isLandscape &&
                 !isFullscreenMode && !isPortraitFullscreen && !isPipMode && !useCollapsedPlayerChromeAppearance
         }
+    val portraitPlayerShowStatusBar =
+        com.android.purebilibili.feature.video.ui.overlay.rememberPortraitPlayerShowStatusBar()
     val systemBarsVisibilityPolicy = remember(
         isFullscreenMode,
         isPortraitFullscreen,
         immersiveVideoPageStatusBar,
         isPipMode,
-        isScreenActive
+        isScreenActive,
+        portraitPlayerShowStatusBar,
     ) {
         resolveVideoDetailSystemBarsVisibilityPolicy(
             isFullscreenMode = isFullscreenMode,
             hideVideoPageStatusBar = immersiveVideoPageStatusBar,
             isInPipMode = isPipMode,
             isScreenActive = isScreenActive,
-            isPortraitFullscreen = isPortraitFullscreen
+            isPortraitFullscreen = isPortraitFullscreen,
+            showStatusBarInPortraitFullscreen = portraitPlayerShowStatusBar,
         )
     }
     val systemBarsApplySpec = remember(
@@ -6133,6 +6167,10 @@ internal fun VideoDetailScreenStateHolder(
             onExitFullscreen = {
                 hasAutoEnteredPortraitFromRoute = true
                 presentationState.setPortraitFullscreen(false)
+            },
+            onEnterLandscapeFullscreen = {
+                hasAutoEnteredPortraitFromRoute = true
+                enterLandscapeFullscreenFromPortrait()
             },
             onHomeClick = {
                 presentationState.setPortraitFullscreen(false)

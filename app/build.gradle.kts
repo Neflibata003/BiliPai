@@ -230,6 +230,20 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += listOf("release")
         }
+        create("mod") {
+            // Mod：与官方正式版并存安装（独立包名 + 独立应用名），不会覆盖原有安装包与数据。
+            // 保持正式版的 R8 / 资源压缩语义；有正式签名时沿用，否则使用本机 debug 签名。
+            initWith(getByName("release"))
+            applicationIdSuffix = ".mod"
+            versionNameSuffix = "-mod"
+            resValue("string", "app_name", "BiliPai Mod")
+            buildConfigField("boolean", "ALLOW_HARDCODED_DNS_FALLBACK", "false")
+            buildConfigField("boolean", "ENABLE_VERBOSE_DEBUG_LOGS", "false")
+            buildConfigField("boolean", "ENABLE_VERBOSE_RUNTIME_LOG_PERSISTENCE", "false")
+            signingConfig = signingConfigs.findByName("officialRelease")
+                ?: signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+        }
         create("smooth") {
             // Smooth 用于本地快速验证正式版运行语义：保留非 debug 行为，但跳过 R8/资源压缩。
             initWith(getByName("release"))
@@ -327,7 +341,7 @@ base {
 androidComponents {
     onVariants(selector().all()) { variant ->
         val variantName = variant.name.lowercase()
-        if (variantName == "release" || variantName == "dev") {
+        if (variantName == "release" || variantName == "dev" || variantName == "mod") {
             val capitalizedVariantName = variant.name.replaceFirstChar { character ->
                 character.uppercaseChar()
             }
@@ -375,7 +389,7 @@ ksp {
 }
 
 // 每个 KSP 任务仅准备自己的目录；其他构建类型的生成文件不参与本任务的输出检查。
-val prepareKspGeneratedDirsByTaskName = listOf("debug", "release", "dev", "smooth")
+val prepareKspGeneratedDirsByTaskName = listOf("debug", "release", "dev", "mod", "smooth")
     .flatMap { buildType ->
         listOf("", "UnitTest", "AndroidTest").map { suffix -> "$buildType$suffix" }
     }

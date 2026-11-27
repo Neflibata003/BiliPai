@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mod 构建的启动页图标：与桌面图标同一套白骨瓷 + 黑曜石字标图层。 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/ic_launcher_obsidian_porcelain_background" />
+    <item android:drawable="@drawable/ic_launcher_obsidian_porcelain_foreground" />
+</layer-list>

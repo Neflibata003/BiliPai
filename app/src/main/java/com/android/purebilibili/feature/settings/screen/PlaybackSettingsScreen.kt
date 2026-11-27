@@ -2484,6 +2484,7 @@ internal enum class PlaybackFullscreenGroup(private vararg val settingIds: Strin
         "playback.pause_on_player_collapse_enabled",
         "playback.portrait_swipe_to_fullscreen_enabled",
         "playback.direct_portrait_story_entry",
+        "playback.portrait_show_status_bar",
         "playback.portrait_only_vertical_recommendations",
         "playback.launch_to_portrait_feed_on_startup",
         "playback.portrait_swipe_down_minimize_enabled",
@@ -2970,6 +2971,29 @@ SettingsItemAnchor("playback.portrait_player_collapse_mode") {
                     scope.launch {
                         com.android.purebilibili.core.store.SettingsManager
                             .setAutoPortraitFullscreen(context, it)
+                    }
+                },
+                iconTint = AppContentColors.secondaryText()
+            )
+        }
+
+        AppPreferenceDivider()
+        SettingsItemAnchor("playback.portrait_show_status_bar") {
+            val portraitShowStatusBar =
+                com.android.purebilibili.feature.video.ui.overlay.rememberPortraitPlayerShowStatusBar()
+            AppSwitchPreference(
+                icon = rememberSettingsSemanticIcon(SettingsIconRole.BATTERY_STATUS),
+                title = playbackSettingTitle("playback.portrait_show_status_bar"),
+                subtitle = if (portraitShowStatusBar) {
+                    "竖屏播放时保留时间、电量与信号"
+                } else {
+                    "竖屏播放时隐藏状态栏，完全沉浸"
+                },
+                checked = portraitShowStatusBar,
+                onCheckedChange = {
+                    scope.launch {
+                        com.android.purebilibili.core.store.PortraitPlayerChromeSettings
+                            .setShowStatusBar(context, it)
                     }
                 },
                 iconTint = AppContentColors.secondaryText()

@@ -339,6 +339,8 @@ fun PortraitVideoPager(
     onSearchClick: () -> Unit = {},
     onUserClick: (Long) -> Unit,
     onExitFullscreen: () -> Unit,
+    /** 离开竖屏流并直接进入横屏全屏；null 时竖屏流不提供横屏入口（如独立刷视频页）。 */
+    onEnterLandscapeFullscreen: (() -> Unit)? = null,
     menuActions: com.android.purebilibili.feature.video.ui.overlay.PiliPlayerMenuActions =
         com.android.purebilibili.feature.video.ui.overlay.PiliPlayerMenuActions(),
     onOpenBilibiliLink: ((String) -> Unit)? = null,
@@ -353,8 +355,10 @@ fun PortraitVideoPager(
     val insetsController = remember(window, view) {
         if (window != null) WindowInsetsControllerCompat(window, view) else null
     }
+    val portraitShowStatusBar =
+        com.android.purebilibili.feature.video.ui.overlay.rememberPortraitPlayerShowStatusBar()
     // 独立竖屏流自行管理系统栏；详情内的播放器由详情页统一管理。
-    DisposableEffect(ownsSystemBars, isActive, window, insetsController) {
+    DisposableEffect(ownsSystemBars, isActive, window, insetsController, portraitShowStatusBar) {
         if (!ownsSystemBars || !isActive || window == null || insetsController == null) {
             return@DisposableEffect onDispose {}
         }
@@ -366,7 +370,8 @@ fun PortraitVideoPager(
                 hideVideoPageStatusBar = false,
                 isInPipMode = false,
                 isScreenActive = true,
-                isPortraitFullscreen = true
+                isPortraitFullscreen = true,
+                showStatusBarInPortraitFullscreen = portraitShowStatusBar,
             ),
             useTabletLayout = false,
             isLightBackground = false,
@@ -2160,6 +2165,7 @@ fun PortraitVideoPager(
                 onUserClick = handleUserClick,
                 onOpenBilibiliLink = onOpenBilibiliLink,
                 onExitFullscreen = onExitFullscreen,
+                onEnterLandscapeFullscreen = onEnterLandscapeFullscreen,
                 onProgressUpdate = onProgressUpdate,
                 watchLaterVideos = watchLaterVideos,
                 recommendationVideos = recommendationItems,
@@ -2424,6 +2430,7 @@ private fun VideoPageItem(
     onUserClick: (Long) -> Unit,
     onOpenBilibiliLink: ((String) -> Unit)?,
     onExitFullscreen: () -> Unit,
+    onEnterLandscapeFullscreen: (() -> Unit)?,
     onProgressUpdate: (String, Long, Long, String) -> Unit,
     watchLaterVideos: List<RelatedVideo>,
     recommendationVideos: List<RelatedVideo>,
@@ -4294,6 +4301,12 @@ private fun VideoPageItem(
                 onPortraitFullscreen = {
                     onExitSnapshot(bvid, exoPlayer.currentPosition, snapshotCid, cover)
                     onExitFullscreen()
+                },
+                onEnterLandscapeFullscreen = onEnterLandscapeFullscreen?.let { enterLandscape ->
+                    {
+                        onExitSnapshot(bvid, exoPlayer.currentPosition, snapshotCid, cover)
+                        enterLandscape()
+                    }
                 },
                 onLandscapeCommentClick = { showCommentSheet = true },
                 onDanmakuToggle = toggleDanmaku,

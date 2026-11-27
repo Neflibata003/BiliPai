@@ -233,6 +233,7 @@ fun BottomControlBar(
     onSendDanmakuClick: () -> Unit = {},
     showFullscreenSpeedAction: Boolean = true,
     showFullscreenQualityAction: Boolean = true,
+    onEnterLandscape: (() -> Unit)? = null,
 ) {
     val glass = com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled
     // 玻璃时间和文字胶囊对齐圆形按钮；MD3、Miuix 保留原生 30dp 控件高度。
@@ -344,6 +345,7 @@ fun BottomControlBar(
                     onSubtitleClick = { localMenu = PlayerControlAnchor.SUBTITLE },
                     subtitleModifier = anchor(PlayerControlAnchor.SUBTITLE, "player_subtitle_action"),
                     onExitFullscreen = onToggleFullscreen,
+                    onEnterLandscape = onEnterLandscape,
                     modifier = Modifier.fillMaxWidth().testTag("player_control_row"),
                 )
             }

@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.video.ui.overlay
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import com.android.purebilibili.core.ui.components.appHorizontalScroll as horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -10,12 +11,15 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material.icons.outlined.ClosedCaptionOff
 import androidx.compose.material.icons.outlined.FullscreenExit
+import androidx.compose.material.icons.rounded.ScreenRotation
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -34,6 +38,66 @@ import com.android.purebilibili.feature.video.ui.components.NativeDanmakuToggleB
 import com.android.purebilibili.feature.video.ui.components.PiliPlusDanmakuSendIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.appActionWithFeedback
+import com.android.purebilibili.core.store.FullscreenTopBarItem
+import com.android.purebilibili.core.store.FullscreenTopBarSettings
+import com.android.purebilibili.core.store.PortraitPlayerChromeSettings
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+
+/** 竖屏播放是否保留系统状态栏（时间 / 电量 / 信号）。首帧使用内存缓存，避免状态栏闪烁。 */
+@Composable
+internal fun rememberPortraitPlayerShowStatusBar(): Boolean {
+    val context = LocalContext.current
+    val showStatusBar by remember(context) { PortraitPlayerChromeSettings.getShowStatusBar(context) }
+        .collectAsStateWithLifecycle(initialValue = PortraitPlayerChromeSettings.peekShowStatusBar())
+    return showStatusBar
+}
+
+/**
+ * 竖屏播放保留状态栏时垫在状态栏后的淡渐变，保证浅色画面上的时间与电量依旧可读。
+ * 状态栏隐藏（或下滑临时唤出）时 statusBars 高度为 0，此层不占任何空间。
+ */
+@Composable
+internal fun PortraitStatusBarScrim(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .windowInsetsTopHeight(WindowInsets.statusBars)
+            .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.42f), Color.Transparent))),
+    )
+}
+
+/** 竖屏「更多」菜单里的两个外观开关：状态栏显示与顶栏设备接力按钮。 */
+internal class PortraitChromeMenuToggles(
+    val statusBarShown: Boolean,
+    val toggleStatusBar: () -> Unit,
+    /** null 表示当前没有设备接力入口（功能关闭或宿主未提供）。 */
+    val nearbyHandoffOnTopBar: Boolean?,
+    val toggleNearbyHandoffOnTopBar: () -> Unit,
+)
+
+/** [scope] 必须来自菜单之外：点击后菜单立即关闭，菜单内的协程作用域会随之取消。 */
+@Composable
+internal fun rememberPortraitChromeMenuToggles(scope: CoroutineScope): PortraitChromeMenuToggles {
+    val context = LocalContext.current
+    val statusBarShown = rememberPortraitPlayerShowStatusBar()
+    val nearbyOnTopBar = FullscreenTopBarItem.NEARBY_HANDOFF in rememberVisibleFullscreenTopBarItems()
+    val nearbyAvailable = com.android.purebilibili.feature.nearby.NEARBY_HANDOFF_ENABLED &&
+        com.android.purebilibili.feature.nearby.LocalNearbyHandoff.current != null
+    return PortraitChromeMenuToggles(
+        statusBarShown = statusBarShown,
+        toggleStatusBar = {
+            scope.launch { PortraitPlayerChromeSettings.setShowStatusBar(context, !statusBarShown) }
+        },
+        nearbyHandoffOnTopBar = nearbyOnTopBar.takeIf { nearbyAvailable },
+        toggleNearbyHandoffOnTopBar = {
+            scope.launch {
+                FullscreenTopBarSettings.setVisible(context, FullscreenTopBarItem.NEARBY_HANDOFF, !nearbyOnTopBar)
+            }
+        },
+    )
+}
 
 /** 竖屏全屏的信息区独立于顶部导航；展开状态只属于当前稿件与标题。 */
 @Composable
@@ -148,6 +212,9 @@ internal fun PortraitPlayerMetadata(
     }
 }
 
+/** 竖屏底栏图标槽宽：比原 40dp 收窄，保证 390dp 级手机上「倍速 + 画质」完整显示而不被横向滚动裁切。 */
+private val PortraitControlSlotWidth = 36.dp
+
 /** 两条材质路径共用操作与触摸尺寸；只有玻璃开启时为左右两组提供独立外壳。 */
 @Composable
 internal fun PortraitPlaybackControls(
@@ -169,6 +236,7 @@ internal fun PortraitPlaybackControls(
     subtitleModifier: Modifier,
     onExitFullscreen: () -> Unit,
     modifier: Modifier = Modifier,
+    onEnterLandscape: (() -> Unit)? = null,
 ) {
     val glass = LocalPlayerControlGlassEnabled.current
     val subtitleActive = subtitleControlState.trackAvailable && subtitleControlState.enabled
@@ -177,7 +245,7 @@ internal fun PortraitPlaybackControls(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .width(40.dp)
+                        .width(PortraitControlSlotWidth)
                         .height(48.dp)
                         .testTag("player_play_pause")
                         .clickable(
@@ -215,14 +283,14 @@ internal fun PortraitPlaybackControls(
                     activeTint = com.android.purebilibili.core.ui.AppContentColors.accent(),
                     inactiveTint = Color.White.copy(alpha = 0.6f),
                     modifier = Modifier
-                        .width(40.dp)
+                        .width(PortraitControlSlotWidth)
                         .height(48.dp)
                         .testTag("player_danmaku_toggle"),
                 )
                 AppIconButton(
                     onClick = onSendDanmakuClick,
                     modifier = Modifier
-                        .width(40.dp)
+                        .width(PortraitControlSlotWidth)
                         .height(48.dp)
                         .testTag("player_send_danmaku"),
                 ) {
@@ -231,7 +299,7 @@ internal fun PortraitPlaybackControls(
                 // 字幕入口常驻；轨道未就绪或不存在时由菜单说明，避免底栏入口忽隐忽现。
                 AppIconButton(
                     onClick = onSubtitleClick,
-                    modifier = Modifier.width(40.dp).height(48.dp).then(subtitleModifier).semantics {
+                    modifier = Modifier.width(PortraitControlSlotWidth).height(48.dp).then(subtitleModifier).semantics {
                         stateDescription = if (subtitleActive) "字幕已开启" else "字幕已关闭"
                     },
                 ) {
@@ -262,18 +330,35 @@ internal fun PortraitPlaybackControls(
         content = {
             Box { playback() }
             Box { tools() }
-            AppIconButton(
-                onClick = onExitFullscreen,
-                modifier = Modifier
-                    .size(width = 40.dp, height = 48.dp)
-                    .testTag("player_fullscreen_toggle"),
-            ) {
-                AppIcon(
-                    imageVector = Icons.Outlined.FullscreenExit,
-                    contentDescription = stringResource(R.string.player_exit_fullscreen),
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp),
-                )
+            if (onEnterLandscape != null) {
+                // 竖屏流里返回键已负责退出；末端按钮改为直接切到横屏全屏。
+                AppIconButton(
+                    onClick = onEnterLandscape,
+                    modifier = Modifier
+                        .size(width = 40.dp, height = 48.dp)
+                        .testTag("player_landscape_toggle"),
+                ) {
+                    AppIcon(
+                        imageVector = Icons.Rounded.ScreenRotation,
+                        contentDescription = "横屏全屏",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            } else {
+                AppIconButton(
+                    onClick = onExitFullscreen,
+                    modifier = Modifier
+                        .size(width = 40.dp, height = 48.dp)
+                        .testTag("player_fullscreen_toggle"),
+                ) {
+                    AppIcon(
+                        imageVector = Icons.Outlined.FullscreenExit,
+                        contentDescription = stringResource(R.string.player_exit_fullscreen),
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
             }
         },
     ) { measurables, constraints ->
@@ -308,9 +393,9 @@ private fun PortraitPlaybackTextAction(
     Box(
         modifier = modifier
             .heightIn(min = 48.dp)
-            .widthIn(min = 48.dp)
+            .widthIn(min = 40.dp)
             .clickable(role = Role.Button, onClickLabel = description, onClick = appActionWithFeedback(onClick))
-            .padding(horizontal = 6.dp),
+            .padding(horizontal = 4.dp),
         contentAlignment = Alignment.Center,
     ) {
         AppText(

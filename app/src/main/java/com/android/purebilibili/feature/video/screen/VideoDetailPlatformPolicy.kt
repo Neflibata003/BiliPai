@@ -78,6 +78,8 @@ internal data class VideoDetailSystemBarsVisibilityPolicy(
 internal enum class VideoDetailHiddenSystemBars {
     NONE,
     STATUS_BARS,
+    /** 竖屏播放保留状态栏（时间 / 电量 / 信号），只隐藏导航栏。 */
+    NAVIGATION_BARS,
     SYSTEM_BARS
 }
 
@@ -97,7 +99,8 @@ internal fun resolveVideoDetailSystemBarsVisibilityPolicy(
     isInPipMode: Boolean,
     isScreenActive: Boolean,
     isPortraitFullscreen: Boolean = false,
-    forceShowSystemBarsInPortrait: Boolean = false
+    forceShowSystemBarsInPortrait: Boolean = false,
+    showStatusBarInPortraitFullscreen: Boolean = false,
 ): VideoDetailSystemBarsVisibilityPolicy {
     if (!isScreenActive || isInPipMode) {
         return VideoDetailSystemBarsVisibilityPolicy(
@@ -114,8 +117,9 @@ internal fun resolveVideoDetailSystemBarsVisibilityPolicy(
                 hideNavigationBars = false
             )
         }
+        // 用户可选择在竖屏播放时保留状态栏：视频仍铺满，顶部控件按状态栏高度避让。
         return VideoDetailSystemBarsVisibilityPolicy(
-            hideStatusBars = true,
+            hideStatusBars = !showStatusBarInPortraitFullscreen,
             hideNavigationBars = true
         )
     }
@@ -144,6 +148,17 @@ internal fun resolveVideoDetailSystemBarsApplySpec(
     transientBarsBehavior: Int
 ): VideoDetailSystemBarsApplySpec {
     if (visibilityPolicy.hideNavigationBars) {
+        if (!visibilityPolicy.hideStatusBars) {
+            // 竖屏播放保留状态栏：透明叠在画面上，图标固定为浅色以适配深色播放背景。
+            return VideoDetailSystemBarsApplySpec(
+                hiddenBars = VideoDetailHiddenSystemBars.NAVIGATION_BARS,
+                systemBarsBehavior = transientBarsBehavior,
+                statusBarColor = transparentColor,
+                navigationBarColor = blackColor,
+                lightStatusBars = false,
+                lightNavigationBars = false
+            )
+        }
         return VideoDetailSystemBarsApplySpec(
             hiddenBars = VideoDetailHiddenSystemBars.SYSTEM_BARS,
             systemBarsBehavior = transientBarsBehavior,
@@ -277,6 +292,10 @@ internal fun applyVideoDetailSystemBarsSpec(
         VideoDetailHiddenSystemBars.STATUS_BARS -> {
             insetsController.hide(WindowInsetsCompat.Type.statusBars())
             insetsController.show(WindowInsetsCompat.Type.navigationBars())
+        }
+        VideoDetailHiddenSystemBars.NAVIGATION_BARS -> {
+            insetsController.hide(WindowInsetsCompat.Type.navigationBars())
+            insetsController.show(WindowInsetsCompat.Type.statusBars())
         }
         VideoDetailHiddenSystemBars.NONE -> {
             insetsController.show(WindowInsetsCompat.Type.systemBars())

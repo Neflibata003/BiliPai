@@ -160,6 +160,7 @@ internal val settingsStaticDescriptionIndex: Map<String, String> = mapOf(
     "playback.player_diagnostic_logging_enabled" to "遇到黑屏、卡顿或无响应时记录排查信息；反馈问题后可关闭",
     "playback.player_insight_mode" to "不显示播放状态信息；打开控制栏时显示；发生掉帧或软件解码时保持可见；始终显示编码、码率、掉帧等播放信息",
     "playback.portrait_letterbox_ambient_haze" to "竖屏全屏的上下留白显示柔和光晕，共用动态环境光的开关、强度和省电设置；关闭后保持纯黑",
+    "playback.portrait_show_status_bar" to "竖屏流与竖屏全屏保留系统状态栏（时间、电量、信号）；关闭后完全沉浸",
     "playback.portrait_only_vertical_recommendations" to "仅推荐竖屏画面的视频；同时推荐横屏和竖屏视频",
     "playback.portrait_swipe_to_fullscreen_enabled" to "开启后在竖屏下向上滑动可快速进入全屏；关闭后竖屏上滑不再触发进入全屏",
     "playback.chapter_display_mode" to "彻底隐藏章节分段条和当前章节标题；随控制栏显示，收起后不遮挡字幕；横屏全屏底部常驻；保留章节列表入口",

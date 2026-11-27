@@ -1,0 +1,71 @@
+name: Build Mod APK
+
+# 编译与官方版并存安装的 Mod 包（包名 com.android.purebilibili.mod）。
+# 推送 mod/** 分支自动编译，也可手动触发；不需要 FCM 与正式签名密钥，未配置正式签名时使用 debug 签名。
+on:
+  push:
+    branches:
+      - 'mod/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: build-mod-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-mod:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: true
+
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+
+      # 可选：配置 RELEASE_KEYSTORE_BASE64 等 4 个 secrets 后用固定签名，后续版本可直接覆盖升级 Mod 包；
+      # 不配置则每次使用 runner 临时 debug 签名，升级 Mod 包前需先卸载旧 Mod（官方版不受影响）。
+      - name: Configure optional signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "BILI_RELEASE_STORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build Mod APK
+        env:
+          # GitHub Packages（Miuix）即使是公开包也需要 token 鉴权。
+          GITHUB_TOKEN: ${{ github.token }}
+          BILI_RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          BILI_RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          BILI_RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --max-workers=4 \
+            "-Pbili.build.commitSha=${{ github.sha }}" \
+            "-Pbili.build.gitRef=${{ github.ref }}" \
+            assembleMod
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BiliPai-Mod
+          path: app/build/outputs/bilipai/mod/*.apk
+          retention-days: 7
+          if-no-files-found: error

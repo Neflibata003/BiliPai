@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 由 artwork/app-icon/obsidian-porcelain/generate.py 生成，请勿手改。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="5.4" android:translateY="5.5" android:scaleX="0.9" android:scaleY="0.9">
+        <path
+            android:pathData="M39.00,38.00 H69.00 A12.00,12.00 0 0 1 81.00,50.00 V64.00 A12.00,12.00 0 0 1 69.00,76.00 H39.00 A12.00,12.00 0 0 1 27.00,64.00 V50.00 A12.00,12.00 0 0 1 39.00,38.00 Z"
+            android:strokeColor="#73FFFFFF"
+            android:strokeWidth="5.2"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M45,38 L39.6,29.8"
+            android:strokeColor="#73FFFFFF"
+            android:strokeWidth="4.6"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M63,38 L68.4,29.8"
+            android:strokeColor="#73FFFFFF"
+            android:strokeWidth="4.6"
+            android:strokeLineCap="round" />
+        <group android:translateX="25.1" android:translateY="59.2" android:rotation="-6">
+            <group android:translateX="-25.1" android:translateY="-59.2">
+                <path
+                    android:pathData="M22.8,45.6 V63.8"
+                    android:strokeColor="#FFFFFFFF"
+                    android:strokeWidth="4.6"
+                    android:strokeLineCap="round"
+                    android:strokeLineJoin="round" />
+                <path
+                    android:pathData="M22.80,59.20 A4.60,4.60 0 1 1 32.00,59.20 A4.60,4.60 0 1 1 22.80,59.20 Z"
+                    android:strokeColor="#FFFFFFFF"
+                    android:strokeWidth="4.6"
+                    android:strokeLineCap="round"
+                    android:strokeLineJoin="round" />
+            </group>
+        </group>
+        <group android:translateX="37.8" android:translateY="58.2" android:rotation="5">
+            <group android:translateX="-37.8" android:translateY="-59.2">
+                <path
+                    android:pathData="M37.8,54.6 V63.8"
+                    android:strokeColor="#FFFFFFFF"
+                    android:strokeWidth="4.6"
+                    android:strokeLineCap="round"
+                    android:strokeLineJoin="round" />
+                <path
+                    android:pathData="M35.25,49.20 A2.55,2.55 0 1 1 40.35,49.20 A2.55,2.55 0 1 1 35.25,49.20 Z"
+                    android:fillColor="#FFFFFFFF" />
+            </group>
+        </group>
+        <group android:translateX="43.6" android:translateY="59.6" android:rotation="-3">
+            <group android:translateX="-43.6" android:translateY="-59.2">
+                <path
+                    android:pathData="M43.6,45.6 V63.8"
+                    android:strokeColor="#FFFFFFFF"
+                    android:strokeWidth="4.6"
+                    android:strokeLineCap="round"
+                    android:strokeLineJoin="round" />
+            </group>
+        </group>
+        <group android:translateX="49.4" android:translateY="58.4" android:rotation="6">
+            <group android:translateX="-49.4" android:translateY="-59.2">
+                <path
+                    android:pathData="M49.4,54.6 V63.8"
+                    android:strokeColor="#FFFFFFFF"
+                    android:strokeWidth="4.6"
+                    android:strokeLineCap="round"
+                    android:strokeLineJoin="round" />
+                <path
+                    android:pathData="M46.85,49.20 A2.55,2.55 0 1 1 51.95,49.20 A2.55,2.55 0 1 1 46.85,49.20 Z"
+                    android:fillColor="#FFFFFFFF" />
+            </group>
+        </group>
+        <group android:translateX="57.5" android:translateY="59.7" android:rotation="-5">
+            <group android:translateX="-57.5" android:translateY="-59.2">
+                <path
+                    android:pathData="M55.2,54.6 V72.4"
+                    android:strokeColor="#FFFFFFFF"
+                    android:strokeWidth="4.6"
+                    android:strokeLineCap="round"
+                    android:strokeLineJoin="round" />
+                <path
+                    android:pathData="M55.20,59.20 A4.60,4.60 0 1 1 64.40,59.20 A4.60,4.60 0 1 1 55.20,59.20 Z"
+                    android:strokeColor="#FFFFFFFF"
+                    android:strokeWidth="4.6"
+                    android:strokeLineCap="round"
+                    android:strokeLineJoin="round" />
+            </group>
+        </group>
+        <group android:translateX="77.1" android:translateY="58.6" android:rotation="4">
+            <group android:translateX="-77.1" android:translateY="-59.2">
+                <path
+                    android:pathData="M70.20,59.20 A4.60,4.60 0 1 1 79.40,59.20 A4.60,4.60 0 1 1 70.20,59.20 Z"
+                    android:strokeColor="#FFFFFFFF"
+                    android:strokeWidth="4.6"
+                    android:strokeLineCap="round"
+                    android:strokeLineJoin="round" />
+                <path
+                    android:pathData="M79.4,54.6 V63.8"
+                    android:strokeColor="#FFFFFFFF"
+                    android:strokeWidth="4.6"
+                    android:strokeLineCap="round"
+                    android:strokeLineJoin="round" />
+            </group>
+        </group>
+        <group android:translateX="85.2" android:translateY="59.9" android:rotation="-5">
+            <group android:translateX="-85.2" android:translateY="-59.2">
+                <path
+                    android:pathData="M85.2,54.6 V63.8"
+                    android:strokeColor="#FFFFFFFF"
+                    android:strokeWidth="4.6"
+                    android:strokeLineCap="round"
+                    android:strokeLineJoin="round" />
+                <path
+                    android:pathData="M82.65,49.20 A2.55,2.55 0 1 1 87.75,49.20 A2.55,2.55 0 1 1 82.65,49.20 Z"
+                    android:fillColor="#FFFFFFFF" />
+            </group>
+        </group>
+    </group>
+</vector>

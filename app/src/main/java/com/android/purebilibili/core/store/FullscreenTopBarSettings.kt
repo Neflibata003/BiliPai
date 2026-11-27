@@ -38,7 +38,7 @@ enum class FullscreenTopBarItem(
 }
 
 object FullscreenTopBarSettings {
-    const val TITLE = "横屏顶部按钮"
+    const val TITLE = "全屏顶部按钮"
 
     val defaultVisibleItems: Set<FullscreenTopBarItem> = FullscreenTopBarItem.entries.toSet()
 
