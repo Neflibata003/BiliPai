@@ -17,7 +17,7 @@ permissions:
   actions: read
 
 env:
-  SOURCE_RUN_ID: ${{ github.event.inputs.run_id || '45921456535' }}
+  SOURCE_RUN_ID: ${{ github.event.inputs.run_id || '45930970324' }}
 
 jobs:
   publish:
@@ -43,7 +43,10 @@ jobs:
           **BiliPai Mod**（基于 BiliPai 0.10.5）——点下方 `BiliPai-0.10.5-mod.apk` 直接下载安装。
 
           - 包名 `com.android.purebilibili.mod`，与官方版并存安装，互不覆盖（需重新登录）。
-          - 竖屏播放：保留状态栏（时间 / 电量 / 信号）、可隐藏顶栏设备接力、横向视频一键切横屏全屏、底栏画质不再被截断。
+          - 竖屏界面重新设计：左上角显示「N人正在看」；头像下方显示播放量，粉色「+ 关注」；标题点按展开；合集 / 视频详情改为胶囊入口。
+          - 竖屏底栏：时间贴在进度条两端，去掉底部空白；「发弹幕」输入框内嵌弹幕开关；倍速 / 画质 / 横屏一键切换。
+          - 竖屏「更多 → 不感兴趣」，并与首页的不感兴趣、屏蔽设置一起过滤竖屏流与刷视频里的内容。
+          - 保留状态栏（时间 / 电量 / 信号）、可隐藏顶栏设备接力；「视频页观看人数」默认开启。
           - 新图标：白骨瓷瓷砖 + 黑曜石 bilipai 字标。
           - 使用 CI 临时签名：以后升级 Mod 需先卸载旧 Mod（官方版不受影响）。
           NOTES
@@ -51,6 +54,6 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$SOURCE_SHA" \
             --prerelease \
-            --title "BiliPai Mod 0.10.5（竖屏优化 + 白骨瓷图标）" \
+            --title "BiliPai Mod 0.10.5（竖屏重设计 + 不感兴趣 + 白骨瓷图标）" \
             --notes-file notes.md
           echo "Release: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
